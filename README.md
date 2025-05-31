@@ -1,8 +1,5 @@
 # SVGC - SVG Chart Generator
 
-![Tests](https://github.com/oleksandr/svgc/workflows/Tests/badge.svg)
-![Code Quality](https://github.com/oleksandr/svgc/workflows/Code%20Quality/badge.svg)
-
 Generate interactive, self-contained SVG charts from CSV data.
 
 ## Features

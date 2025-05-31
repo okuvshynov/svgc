@@ -155,3 +155,8 @@ pids
 
 # Yarn Integrity file
 .yarn-integrity
+
+# ctags
+tags
+tags.lock
+
