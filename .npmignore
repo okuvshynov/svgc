@@ -1,0 +1,30 @@
+# Development files
+test/
+.github/
+examples/
+data/
+
+# Documentation
+CLAUDE.md
+
+# CI/Development configs
+.gitignore
+*.md
+
+# Dependencies
+node_modules/
+
+# Generated files
+coverage/
+.nyc_output
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

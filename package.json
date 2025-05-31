@@ -1,0 +1,20 @@
+{
+  "name": "svgc",
+  "version": "1.0.0",
+  "description": "Generate interactive self-contained SVG charts from CSV data",
+  "main": "src/cli.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/cli.js",
+    "test": "node --test test/*.test.js"
+  },
+  "bin": {
+    "svgc": "./src/cli.js"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.2"
+  },
+  "keywords": ["svg", "charts", "csv", "visualization", "interactive"],
+  "author": "Oleksandr Kuvshynov",
+  "license": "MIT"
+}
