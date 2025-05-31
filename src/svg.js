@@ -18,6 +18,8 @@ export function generateSVG(chartData, data, options) {
       .chart-point.hidden { display: none; }
       
       .axis-line { stroke: #333; stroke-width: 1; }
+      .axis-tick { stroke: #333; stroke-width: 1; }
+      .grid-line { stroke: #e0e0e0; stroke-width: 1; stroke-dasharray: 2,2; opacity: 0.6; }
       .axis-text { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
       .chart-title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #333; }
       
@@ -80,18 +82,62 @@ function generateAxes(chartData, options) {
                    x2="${chartBounds.left}" y2="${chartBounds.top + chartBounds.height}" 
                    class="axis-line"/>`);
   
-  // X-axis labels
-  const xTicks = generateTicks(xScale.min, xScale.max, 5);
+  // Generate all possible ticks
+  const allXTicks = generateTicks(xScale.min, xScale.max, 5);
+  const allYTicks = generateTicks(yScale.min, yScale.max, 5);
+  
+  // Filter ticks to only show those within the chart bounds
+  const xTicks = allXTicks.filter(tick => tick >= xScale.min && tick <= xScale.max);
+  const yTicks = allYTicks.filter(tick => tick >= yScale.min && tick <= yScale.max);
+  
+  // X-axis grid lines (vertical)
   xTicks.forEach(tick => {
     const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
-    axes.push(`<text x="${x}" y="${chartBounds.top + chartBounds.height + 20}" 
+    
+    // Only add grid line if it's not at the edge (Y-axis)
+    if (Math.abs(x - chartBounds.left) > 1) {
+      axes.push(`<line x1="${x}" y1="${chartBounds.top}" 
+                       x2="${x}" y2="${chartBounds.top + chartBounds.height}" 
+                       class="grid-line"/>`);
+    }
+  });
+  
+  // Y-axis grid lines (horizontal)
+  yTicks.forEach(tick => {
+    const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+    
+    // Only add grid line if it's not at the edge (X-axis)
+    if (Math.abs(y - (chartBounds.top + chartBounds.height)) > 1) {
+      axes.push(`<line x1="${chartBounds.left}" y1="${y}" 
+                       x2="${chartBounds.left + chartBounds.width}" y2="${y}" 
+                       class="grid-line"/>`);
+    }
+  });
+  
+  // X-axis tick marks and labels
+  xTicks.forEach(tick => {
+    const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
+    
+    // Tick mark
+    axes.push(`<line x1="${x}" y1="${chartBounds.top + chartBounds.height}" 
+                     x2="${x}" y2="${chartBounds.top + chartBounds.height + 5}" 
+                     class="axis-tick"/>`);
+    
+    // Label
+    axes.push(`<text x="${x}" y="${chartBounds.top + chartBounds.height + 18}" 
                      text-anchor="middle" class="axis-text">${formatNumber(tick)}</text>`);
   });
   
-  // Y-axis labels
-  const yTicks = generateTicks(yScale.min, yScale.max, 5);
+  // Y-axis tick marks and labels
   yTicks.forEach(tick => {
     const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+    
+    // Tick mark
+    axes.push(`<line x1="${chartBounds.left - 5}" y1="${y}" 
+                     x2="${chartBounds.left}" y2="${y}" 
+                     class="axis-tick"/>`);
+    
+    // Label
     axes.push(`<text x="${chartBounds.left - 10}" y="${y + 4}" 
                      text-anchor="end" class="axis-text">${formatNumber(tick)}</text>`);
   });
@@ -159,27 +205,82 @@ function generateUIControls(data, options) {
   return '<!-- UI controls will be added here -->';
 }
 
-function generateTicks(min, max, count) {
-  const range = max - min;
-  const step = range / (count - 1);
-  const ticks = [];
+function generateTicks(min, max, targetCount) {
+  if (min === max) {
+    return [min];
+  }
   
-  for (let i = 0; i < count; i++) {
-    ticks.push(min + i * step);
+  const range = max - min;
+  
+  // Calculate rough step size
+  const roughStep = range / (targetCount - 1);
+  
+  // Find nice step size (1, 2, 2.5, 5) * 10^k
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const normalized = roughStep / magnitude;
+  
+  let niceStep;
+  if (normalized <= 1) {
+    niceStep = 1 * magnitude;
+  } else if (normalized <= 2) {
+    niceStep = 2 * magnitude;
+  } else if (normalized <= 2.5) {
+    niceStep = 2.5 * magnitude;
+  } else if (normalized <= 5) {
+    niceStep = 5 * magnitude;
+  } else {
+    niceStep = 10 * magnitude;
+  }
+  
+  // Find nice start and end values
+  const niceMin = Math.floor(min / niceStep) * niceStep;
+  const niceMax = Math.ceil(max / niceStep) * niceStep;
+  
+  // Generate ticks
+  const ticks = [];
+  for (let tick = niceMin; tick <= niceMax + niceStep * 0.001; tick += niceStep) {
+    // Round to avoid floating point precision issues
+    const roundedTick = Math.round(tick / niceStep) * niceStep;
+    ticks.push(roundedTick);
   }
   
   return ticks;
 }
 
 function formatNumber(num) {
-  if (Math.abs(num) >= 1e6) {
-    return (num / 1e6).toFixed(1) + 'M';
-  } else if (Math.abs(num) >= 1e3) {
-    return (num / 1e3).toFixed(1) + 'K';
-  } else if (num % 1 === 0) {
-    return num.toString();
+  // Handle zero
+  if (num === 0) {
+    return '0';
+  }
+  
+  const absNum = Math.abs(num);
+  
+  if (absNum >= 1e6) {
+    // Millions: show 1 decimal if needed, otherwise integer
+    const millions = num / 1e6;
+    return millions % 1 === 0 ? millions.toString() + 'M' : millions.toFixed(1) + 'M';
+  } else if (absNum >= 1e3) {
+    // Thousands: show 1 decimal if needed, otherwise integer
+    const thousands = num / 1e3;
+    return thousands % 1 === 0 ? thousands.toString() + 'K' : thousands.toFixed(1) + 'K';
+  } else if (absNum >= 1) {
+    // Regular numbers: show decimals only if needed
+    if (num % 1 === 0) {
+      return num.toString();
+    } else if (num % 0.1 === 0) {
+      return num.toFixed(1);
+    } else {
+      return num.toFixed(2);
+    }
   } else {
-    return num.toFixed(2);
+    // Small numbers: use appropriate precision
+    if (num % 0.01 === 0) {
+      return num.toFixed(2);
+    } else if (num % 0.001 === 0) {
+      return num.toFixed(3);
+    } else {
+      return num.toFixed(4);
+    }
   }
 }
 
