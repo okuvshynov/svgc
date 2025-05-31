@@ -1,0 +1,86 @@
+name: Generate Examples
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  examples:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Generate example charts
+      run: |
+        mkdir -p generated-examples
+        
+        # Generate the main performance chart
+        node src/cli.js -x n_depth -y avg_ts -g model \
+          data/qwen30b3a_q3.csv -o generated-examples/performance.svg
+        
+        # Generate size vs performance chart
+        node src/cli.js -x model_size -y avg_ts -g model \
+          data/qwen30b3a_q3.csv -o generated-examples/size-vs-performance.svg
+        
+        # Generate tokens vs throughput with custom dimensions
+        node src/cli.js -w 1200 -h 800 -x n_gen -y avg_ts -g model \
+          data/qwen30b3a_q3.csv -o generated-examples/tokens-throughput-large.svg
+        
+        # Generate context depth chart with point sizes based on model size
+        node src/cli.js -x n_depth -y avg_ts -s model_size -g model \
+          data/qwen30b3a_q3.csv -o generated-examples/context-depth-weighted.svg
+        
+        echo "Generated example charts:"
+        ls -la generated-examples/
+        
+    - name: Validate generated SVGs
+      run: |
+        for svg in generated-examples/*.svg; do
+          echo "Validating $svg..."
+          
+          # Check file is not empty
+          if [ ! -s "$svg" ]; then
+            echo "Error: $svg is empty"
+            exit 1
+          fi
+          
+          # Check contains SVG content
+          if ! grep -q "<svg" "$svg"; then
+            echo "Error: $svg does not contain SVG content"
+            exit 1
+          fi
+          
+          # Check contains data points
+          if ! grep -q "<circle" "$svg"; then
+            echo "Error: $svg does not contain chart points"
+            exit 1
+          fi
+          
+          # Check contains embedded JavaScript
+          if ! grep -q "<script" "$svg"; then
+            echo "Error: $svg does not contain embedded JavaScript"
+            exit 1
+          fi
+          
+          echo "✓ $svg is valid"
+        done
+        
+    - name: Upload example charts as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: example-charts
+        path: generated-examples/
+        retention-days: 30
