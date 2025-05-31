@@ -18,6 +18,8 @@ export function generateSVG(chartData, data, options) {
       .chart-point.hidden { display: none; }
       
       .axis-line { stroke: #333; stroke-width: 1; }
+      .axis-tick { stroke: #333; stroke-width: 1; }
+      .grid-line { stroke: #e0e0e0; stroke-width: 1; stroke-dasharray: 2,2; opacity: 0.6; }
       .axis-text { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
       .chart-title { font-family: Arial, sans-serif; font-size: 16px; font-weight: bold; fill: #333; }
       
@@ -80,18 +82,62 @@ function generateAxes(chartData, options) {
                    x2="${chartBounds.left}" y2="${chartBounds.top + chartBounds.height}" 
                    class="axis-line"/>`);
   
-  // X-axis labels
-  const xTicks = generateTicks(xScale.min, xScale.max, 5);
+  // Generate all possible ticks
+  const allXTicks = generateTicks(xScale.min, xScale.max, 5);
+  const allYTicks = generateTicks(yScale.min, yScale.max, 5);
+  
+  // Filter ticks to only show those within the chart bounds
+  const xTicks = allXTicks.filter(tick => tick >= xScale.min && tick <= xScale.max);
+  const yTicks = allYTicks.filter(tick => tick >= yScale.min && tick <= yScale.max);
+  
+  // X-axis grid lines (vertical)
   xTicks.forEach(tick => {
     const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
-    axes.push(`<text x="${x}" y="${chartBounds.top + chartBounds.height + 20}" 
+    
+    // Only add grid line if it's not at the edge (Y-axis)
+    if (Math.abs(x - chartBounds.left) > 1) {
+      axes.push(`<line x1="${x}" y1="${chartBounds.top}" 
+                       x2="${x}" y2="${chartBounds.top + chartBounds.height}" 
+                       class="grid-line"/>`);
+    }
+  });
+  
+  // Y-axis grid lines (horizontal)
+  yTicks.forEach(tick => {
+    const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+    
+    // Only add grid line if it's not at the edge (X-axis)
+    if (Math.abs(y - (chartBounds.top + chartBounds.height)) > 1) {
+      axes.push(`<line x1="${chartBounds.left}" y1="${y}" 
+                       x2="${chartBounds.left + chartBounds.width}" y2="${y}" 
+                       class="grid-line"/>`);
+    }
+  });
+  
+  // X-axis tick marks and labels
+  xTicks.forEach(tick => {
+    const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
+    
+    // Tick mark
+    axes.push(`<line x1="${x}" y1="${chartBounds.top + chartBounds.height}" 
+                     x2="${x}" y2="${chartBounds.top + chartBounds.height + 5}" 
+                     class="axis-tick"/>`);
+    
+    // Label
+    axes.push(`<text x="${x}" y="${chartBounds.top + chartBounds.height + 18}" 
                      text-anchor="middle" class="axis-text">${formatNumber(tick)}</text>`);
   });
   
-  // Y-axis labels
-  const yTicks = generateTicks(yScale.min, yScale.max, 5);
+  // Y-axis tick marks and labels
   yTicks.forEach(tick => {
     const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+    
+    // Tick mark
+    axes.push(`<line x1="${chartBounds.left - 5}" y1="${y}" 
+                     x2="${chartBounds.left}" y2="${y}" 
+                     class="axis-tick"/>`);
+    
+    // Label
     axes.push(`<text x="${chartBounds.left - 10}" y="${y + 4}" 
                      text-anchor="end" class="axis-text">${formatNumber(tick)}</text>`);
   });
