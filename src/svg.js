@@ -71,11 +71,11 @@ export function generateSVG(chartData, data, options) {
     let currentChartData = null;
     let visibleGroups = new Set();
     
-    // Chart dimensions (account for UI controls)
+    // Chart dimensions (account for left control panel)
     const chartDimensions = {
       width: ${width},
       height: ${height},
-      padding: 80  // Increased padding for UI controls
+      padding: 60  // Standard padding, control panel handled separately
     };
     
     ${generateEmbeddedChartFunctions()}
@@ -378,7 +378,8 @@ function generateEmbeddedChartFunctions() {
     
     function generateScatterChart(data, options) {
       const { width, height, padding } = chartDimensions;
-      const chartWidth = width - 2 * padding;
+      const controlPanelWidth = 180; // Account for control panel
+      const chartWidth = width - controlPanelWidth - padding - 20;
       const chartHeight = height - 2 * padding;
       
       // Calculate scales
@@ -428,7 +429,7 @@ function generateEmbeddedChartFunctions() {
           return null;
         }
         
-        const svgX = padding + ((x - xScale.min) / xScale.range) * chartWidth;
+        const svgX = controlPanelWidth + padding + ((x - xScale.min) / xScale.range) * chartWidth;
         const svgY = padding + chartHeight - ((y - yScale.min) / yScale.range) * chartHeight;
         
         const group = options.groupField ? row[options.groupField] : 'default';
@@ -453,7 +454,7 @@ function generateEmbeddedChartFunctions() {
         groupColorMap,
         groups,
         chartBounds: {
-          left: padding,
+          left: controlPanelWidth + padding,
           top: padding,
           width: chartWidth,
           height: chartHeight
@@ -484,43 +485,69 @@ function generateEmbeddedChartFunctions() {
       const controlsContainer = document.getElementById('ui-controls');
       controlsContainer.innerHTML = '';
       
+      // Control panel dimensions
+      const panelWidth = 160;
+      const panelX = 10;
+      const panelY = 50;
+      
+      // Draw control panel background
+      const panelBg = createSVGElement('rect', {
+        x: panelX,
+        y: panelY,
+        width: panelWidth,
+        height: chartDimensions.height - panelY - 20,
+        fill: '#f8f9fa',
+        stroke: '#dee2e6',
+        'stroke-width': 1,
+        rx: 6
+      });
+      controlsContainer.appendChild(panelBg);
+      
+      // Panel title
+      const panelTitle = createSVGElement('text', {
+        x: panelX + panelWidth / 2,
+        y: panelY + 20,
+        class: 'ui-label',
+        'text-anchor': 'middle',
+        style: 'font-weight: bold; font-size: 14px;'
+      });
+      panelTitle.textContent = 'Chart Controls';
+      controlsContainer.appendChild(panelTitle);
+      
       // Get available numeric fields for axis selection
       const numericFields = Object.keys(embeddedData.rows[0]).filter(field => {
         return embeddedData.rows.some(row => typeof row[field] === 'number');
       });
       
       // X-axis dropdown
-      const xAxisGroup = createUIGroup(20, 50, 'X Axis:', currentOptions.xField, numericFields, (field) => {
+      const xAxisGroup = createUIGroup(panelX + 10, panelY + 50, 'X Axis:', currentOptions.xField, numericFields, (field) => {
         currentOptions.xField = field;
-        renderChartContent();  // Don't re-render UI controls
+        renderChartContent();
       });
       controlsContainer.appendChild(xAxisGroup);
       
-      // Y-axis dropdown
-      const yAxisGroup = createUIGroup(200, 50, 'Y Axis:', currentOptions.yField, numericFields, (field) => {
+      // Y-axis dropdown  
+      const yAxisGroup = createUIGroup(panelX + 10, panelY + 100, 'Y Axis:', currentOptions.yField, numericFields, (field) => {
         currentOptions.yField = field;
-        renderChartContent();  // Don't re-render UI controls
+        renderChartContent();
       });
       controlsContainer.appendChild(yAxisGroup);
       
       // All fields for grouping (including string fields)
       const allFields = Object.keys(embeddedData.rows[0]);
+      const groupFields = ['None', ...allFields];
+      const currentGroupField = currentOptions.groupField || 'None';
       
-      // Group field dropdown (optional)
-      if (allFields.length > numericFields.length) {
-        const groupFields = ['None', ...allFields];
-        const currentGroupField = currentOptions.groupField || 'None';
-        
-        const groupAxisGroup = createUIGroup(380, 50, 'Group By:', currentGroupField, groupFields, (field) => {
-          if (field === 'None') {
-            delete currentOptions.groupField;
-          } else {
-            currentOptions.groupField = field;
-          }
-          renderChartContent();  // Don't re-render UI controls
-        });
-        controlsContainer.appendChild(groupAxisGroup);
-      }
+      // Group field dropdown
+      const groupAxisGroup = createUIGroup(panelX + 10, panelY + 150, 'Group By:', currentGroupField, groupFields, (field) => {
+        if (field === 'None') {
+          delete currentOptions.groupField;
+        } else {
+          currentOptions.groupField = field;
+        }
+        renderChartContent();
+      });
+      controlsContainer.appendChild(groupAxisGroup);
     }
     
     function createUIGroup(x, y, label, currentValue, options, onChange) {
@@ -545,7 +572,7 @@ function generateEmbeddedChartFunctions() {
       const buttonBg = createSVGElement('rect', {
         x: x,
         y: y,
-        width: 140,
+        width: 130,
         height: 20,
         fill: '#fff',
         stroke: '#ccc',
@@ -567,7 +594,7 @@ function generateEmbeddedChartFunctions() {
       
       // Dropdown arrow
       const arrow = createSVGElement('polygon', {
-        points: \`\${x + 125},\${y + 6} \${x + 135},\${y + 6} \${x + 130},\${y + 14}\`,
+        points: \`\${x + 115},\${y + 6} \${x + 125},\${y + 6} \${x + 120},\${y + 14}\`,
         fill: '#666',
         class: 'dropdown-arrow',
         style: 'pointer-events: none;'
@@ -578,7 +605,7 @@ function generateEmbeddedChartFunctions() {
       const listBg = createSVGElement('rect', {
         x: x,
         y: y + 22,
-        width: 140,
+        width: 130,
         height: Math.min(options.length * 18 + 4, 120),
         fill: '#fff',
         stroke: '#ccc',
@@ -602,7 +629,7 @@ function generateEmbeddedChartFunctions() {
         const optionBg = createSVGElement('rect', {
           x: x + 2,
           y: optionY,
-          width: 136,
+          width: 126,
           height: 16,
           fill: 'transparent',
           class: \`dropdown-option \${option === currentValue ? 'selected' : ''}\`,
@@ -855,7 +882,7 @@ function generateEmbeddedChartFunctions() {
         return;
       }
       
-      const legendX = chartDimensions.width - 180;
+      const legendX = chartDimensions.width - 160;
       const legendY = 50;
       
       // Legend title
