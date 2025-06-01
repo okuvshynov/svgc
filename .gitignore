@@ -121,19 +121,6 @@ Thumbs.db
 *.swo
 *~
 
-# Generated SVG files (except examples)
-*.svg
-!examples/*.svg
-
-# Test temporary files
-test-data.csv
-test-output.svg
-test/*.csv
-test/*.svg
-
-# Generated examples during CI
-generated-examples/
-
 # Logs
 logs
 *.log
