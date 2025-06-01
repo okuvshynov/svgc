@@ -77,21 +77,49 @@ The system now uses **embedded chart rendering** where:
 
 ## Testing
 
-The project includes comprehensive unit tests for:
+The project includes comprehensive testing at multiple levels:
+
+### Unit Tests
 - CSV parsing and type inference
-- Scatter chart scaling and point positioning
+- Scatter chart scaling and point positioning  
 - SVG generation and structure
 - Edge cases like constant values and invalid data
+- Uses Node.js built-in test runner (no external dependencies)
 
-Tests use Node.js built-in test runner (no external dependencies).
+### Integration Tests  
+- Browser-based testing using Puppeteer
+- Loads generated SVG files in headless Chrome
+- Detects JavaScript errors and runtime issues
+- Validates core functionality and DOM structure
+- Ensures charts render properly in real browsers
+
+### Test Commands
+```bash
+npm test                # Unit tests only
+npm run test:integration # Integration tests only
+npm run test:all        # Complete test suite
+```
+
+### Dependencies
+- **Runtime**: Only `csv-parse` (lightweight for users)
+- **Development**: Adds `puppeteer` for browser testing
+- **Installation**: `npm install --production` for users, `npm install` for developers
 
 ## Continuous Integration
 
 GitHub Actions workflows automatically:
-- **Tests**: Run unit tests on Node.js 18.x, 20.x, and 22.x
-- **Code Quality**: Check syntax, file structure, and package validity
-- **Examples**: Generate sample charts and validate SVG output
-- **Artifacts**: Upload generated charts for download and inspection
+
+### Separate Workflow Jobs
+- **Unit Tests** (`test.yml`): Run on Node.js 18.x, 20.x, and 22.x with CLI functionality tests
+- **Integration Tests** (`integration.yml`): Browser-based validation using Puppeteer across all Node versions
+- **Code Quality** (`lint.yml`): Syntax checking, file structure validation, package configuration
+
+### Integration Test Features
+- Generates multiple test charts (basic, grouped, custom dimensions, different fields)
+- Validates each SVG loads without JavaScript errors in headless Chrome
+- Tests core functionality (renderChart, updateChart, changeAxis) 
+- Uploads generated SVGs as artifacts (30-day retention)
+- Provides detailed error reporting and logs
 
 All workflows run on pushes to `main` and on pull requests.
 
@@ -176,3 +204,4 @@ updateChart({
 - **Package publishing**: .npmignore excludes development files from npm packages
 - **CI artifacts**: Generated examples available for 30 days after each build
 - **Testing**: Always add tests for new functionality, especially edge cases
+- **Integration testing**: Run `npm run test:all` before commits to catch browser compatibility issues
