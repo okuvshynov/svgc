@@ -35,11 +35,7 @@ export function generateSVG(chartData, data, options) {
       .ui-control { font-family: Arial, sans-serif; font-size: 12px; }
       .ui-select { font-family: Arial, sans-serif; font-size: 11px; }
       
-      /* SVG Dropdown Styling */
-      .dropdown-button { cursor: pointer; }
-      .dropdown-button:hover { stroke: #999; }
-      .dropdown-option { cursor: pointer; }
-      .dropdown-option.selected { fill: #e6f3ff; }
+      /* HTML Select styling handled inline in foreignObject */
       
       .ui-label {
         font-family: Arial, sans-serif;
@@ -569,156 +565,42 @@ function generateEmbeddedChartFunctions() {
       labelText.textContent = label;
       group.appendChild(labelText);
       
-      // Create SVG-based dropdown
-      const dropdownGroup = createSVGElement('g', {
-        class: 'svg-dropdown',
-        'data-open': 'false'
-      });
-      
-      // Dropdown button background
-      const buttonBg = createSVGElement('rect', {
+      // Create foreignObject for HTML select
+      const foreignObject = createSVGElement('foreignObject', {
         x: x,
         y: y,
         width: 130,
-        height: 20,
-        fill: '#fff',
-        stroke: '#ccc',
-        'stroke-width': 1,
-        rx: 3,
-        class: 'dropdown-button'
-      });
-      dropdownGroup.appendChild(buttonBg);
-      
-      // Current value text
-      const valueText = createSVGElement('text', {
-        x: x + 5,
-        y: y + 14,
-        class: 'dropdown-value',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; fill: #333; pointer-events: none;'
-      });
-      valueText.textContent = currentValue;
-      dropdownGroup.appendChild(valueText);
-      
-      // Dropdown arrow
-      const arrow = createSVGElement('polygon', {
-        points: \`\${x + 115},\${y + 6} \${x + 125},\${y + 6} \${x + 120},\${y + 14}\`,
-        fill: '#666',
-        class: 'dropdown-arrow',
-        style: 'pointer-events: none;'
-      });
-      dropdownGroup.appendChild(arrow);
-      
-      // Dropdown list background (initially hidden)
-      const listBg = createSVGElement('rect', {
-        x: x,
-        y: y + 22,
-        width: 130,
-        height: Math.min(options.length * 18 + 4, 120),
-        fill: '#fff',
-        stroke: '#ccc',
-        'stroke-width': 1,
-        rx: 3,
-        class: 'dropdown-list-bg',
-        style: 'display: none;'
-      });
-      dropdownGroup.appendChild(listBg);
-      
-      // Dropdown options
-      const optionsGroup = createSVGElement('g', {
-        class: 'dropdown-options',
-        style: 'display: none;'
+        height: 22
       });
       
-      options.forEach((option, index) => {
-        const optionY = y + 24 + index * 18;
-        
-        // Option background
-        const optionBg = createSVGElement('rect', {
-          x: x + 2,
-          y: optionY,
-          width: 126,
-          height: 16,
-          fill: 'transparent',
-          class: \`dropdown-option \${option === currentValue ? 'selected' : ''}\`,
-          'data-value': option
-        });
-        
-        // Option text
-        const optionText = createSVGElement('text', {
-          x: x + 5,
-          y: optionY + 12,
-          class: 'dropdown-option-text',
-          style: 'font-family: Arial, sans-serif; font-size: 11px; fill: #333; pointer-events: none;'
-        });
-        optionText.textContent = option;
-        
-        optionsGroup.appendChild(optionBg);
-        optionsGroup.appendChild(optionText);
-        
-        // Option hover effect
-        optionBg.addEventListener('mouseenter', () => {
-          optionBg.setAttribute('fill', '#f0f0f0');
-        });
-        
-        optionBg.addEventListener('mouseleave', () => {
-          if (option !== currentValue) {
-            optionBg.setAttribute('fill', 'transparent');
-          }
-        });
-        
-        // Option click
-        optionBg.addEventListener('click', () => {
-          // Update current value
-          valueText.textContent = option;
-          
-          // Update selected state
-          const allOptions = optionsGroup.querySelectorAll('.dropdown-option');
-          allOptions.forEach(opt => {
-            opt.classList.remove('selected');
-            opt.setAttribute('fill', 'transparent');
-          });
-          optionBg.classList.add('selected');
-          optionBg.setAttribute('fill', '#e6f3ff');
-          
-          // Hide dropdown
-          toggleDropdown(false);
-          
-          // Call onChange
-          onChange(option);
-        });
-      });
+      // Create HTML select element in HTML namespace
+      const selectElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'select');
       
-      dropdownGroup.appendChild(optionsGroup);
+      // Set style attribute as string since we're in XML context
+      selectElement.setAttribute('style', 
+        'width: 130px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; ' +
+        'border: 1px solid #ccc; border-radius: 3px; background: white; padding: 2px; outline: none;'
+      );
       
-      // Toggle dropdown function
-      function toggleDropdown(show) {
-        const isOpen = show !== undefined ? show : dropdownGroup.getAttribute('data-open') === 'false';
-        dropdownGroup.setAttribute('data-open', isOpen.toString());
-        
-        if (isOpen) {
-          listBg.style.display = 'block';
-          optionsGroup.style.display = 'block';
-          buttonBg.setAttribute('stroke', '#007acc');
-        } else {
-          listBg.style.display = 'none';
-          optionsGroup.style.display = 'none';
-          buttonBg.setAttribute('stroke', '#ccc');
+      // Add options to select
+      options.forEach(option => {
+        const optionElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'option');
+        optionElement.setAttribute('value', option);
+        optionElement.textContent = option;
+        if (option === currentValue) {
+          optionElement.setAttribute('selected', 'selected');
         }
-      }
-      
-      // Button click to toggle dropdown
-      buttonBg.addEventListener('click', () => {
-        toggleDropdown();
+        selectElement.appendChild(optionElement);
       });
       
-      // Close dropdown when clicking outside (simplified)
-      document.addEventListener('click', (e) => {
-        if (!dropdownGroup.contains(e.target)) {
-          toggleDropdown(false);
-        }
+      // Add event listener
+      selectElement.addEventListener('change', (e) => {
+        onChange(e.target.value);
       });
       
-      group.appendChild(dropdownGroup);
+      foreignObject.appendChild(selectElement);
+      
+      group.appendChild(foreignObject);
       return group;
     }
 
