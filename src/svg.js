@@ -167,9 +167,9 @@ function generateAxes(chartData, options) {
   axes.push(`<text x="${chartBounds.left + chartBounds.width/2}" y="${chartBounds.top + chartBounds.height + 45}" 
                    text-anchor="middle" class="axis-text" style="font-weight: bold;">${xField}</text>`);
   
-  axes.push(`<text x="${chartBounds.left - 45}" y="${chartBounds.top + chartBounds.height/2}" 
+  axes.push(`<text x="${chartBounds.left - 60}" y="${chartBounds.top + chartBounds.height/2}" 
                    text-anchor="middle" class="axis-text" style="font-weight: bold;" 
-                   transform="rotate(-90, ${chartBounds.left - 45}, ${chartBounds.top + chartBounds.height/2})">${yField}</text>`);
+                   transform="rotate(-90, ${chartBounds.left - 60}, ${chartBounds.top + chartBounds.height/2})">${yField}</text>`);
   
   return axes.join('\\n    ');
 }
@@ -276,8 +276,12 @@ function formatNumber(num) {
   
   const absNum = Math.abs(num);
   
-  if (absNum >= 1e6) {
-    // Millions: show 1 decimal if needed, otherwise integer
+  if (absNum >= 1e9) {
+    // Billions: keep it compact
+    const billions = num / 1e9;
+    return billions % 1 === 0 ? billions.toString() + 'B' : billions.toFixed(1) + 'B';
+  } else if (absNum >= 1e6) {
+    // Millions: keep it compact  
     const millions = num / 1e6;
     return millions % 1 === 0 ? millions.toString() + 'M' : millions.toFixed(1) + 'M';
   } else if (absNum >= 1e3) {
@@ -351,7 +355,10 @@ function generateEmbeddedChartFunctions() {
       
       const absNum = Math.abs(num);
       
-      if (absNum >= 1e6) {
+      if (absNum >= 1e9) {
+        const billions = num / 1e9;
+        return billions % 1 === 0 ? billions.toString() + 'B' : billions.toFixed(1) + 'B';
+      } else if (absNum >= 1e6) {
         const millions = num / 1e6;
         return millions % 1 === 0 ? millions.toString() + 'M' : millions.toFixed(1) + 'M';
       } else if (absNum >= 1e3) {
@@ -846,12 +853,12 @@ function generateEmbeddedChartFunctions() {
       container.appendChild(xTitle);
       
       const yTitle = createSVGElement('text', {
-        x: chartBounds.left - 45,
+        x: chartBounds.left - 60,
         y: chartBounds.top + chartBounds.height/2,
         'text-anchor': 'middle',
         class: 'axis-text',
         style: 'font-weight: bold;',
-        transform: \`rotate(-90, \${chartBounds.left - 45}, \${chartBounds.top + chartBounds.height/2})\`
+        transform: \`rotate(-90, \${chartBounds.left - 60}, \${chartBounds.top + chartBounds.height/2})\`
       });
       yTitle.textContent = yField;
       container.appendChild(yTitle);
