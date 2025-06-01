@@ -7,7 +7,7 @@
       .chart-point { cursor: pointer; transition: all 0.2s ease; }
       .chart-point:hover { stroke: #000; stroke-width: 2; }
       .chart-point.highlighted { opacity: 1; }
-      .chart-point.dimmed { opacity: 0.3; }
+      .chart-point.dimmed { opacity: 0.1; }
       .chart-point.hidden { display: none; }
       
       .axis-line { stroke: #333; stroke-width: 1; }
