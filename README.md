@@ -89,15 +89,48 @@ updateChart({
 ## Development
 
 ```bash
-# Install dependencies
+# Install dependencies (runtime only)
+npm install --production
+
+# Install all dependencies (including testing tools)
 npm install
 
-# Run tests
+# Run unit tests
 npm test
+
+# Run integration tests (requires puppeteer)
+npm run test:integration
+
+# Run all tests
+npm run test:all
 
 # Generate example charts
 node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg
 ```
+
+### Testing
+
+The project includes two types of tests:
+
+- **Unit Tests**: Test individual functions and modules using Node.js built-in test runner
+- **Integration Tests**: Test generated SVG files in a real browser using Puppeteer
+
+**For users** (runtime only):
+```bash
+npm install --production  # Only installs csv-parse
+```
+
+**For developers** (with testing):
+```bash
+npm install               # Installs puppeteer for browser testing
+npm run test:all          # Run complete test suite
+```
+
+Integration tests:
+- Load generated SVG files in headless Chrome
+- Detect JavaScript errors and runtime issues
+- Verify core functionality and DOM structure
+- Validate that charts render properly in browsers
 
 ## Contributing
 
@@ -105,11 +138,12 @@ node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Ensure all tests pass: `npm test`
+5. Ensure all tests pass: `npm run test:all`
 6. Submit a pull request
 
 The CI pipeline will automatically:
-- Run tests on multiple Node.js versions
-- Check code quality and syntax
-- Generate example charts
-- Upload artifacts for inspection
+- **Unit Tests**: Run on Node.js 18.x, 20.x, and 22.x
+- **Integration Tests**: Validate generated SVGs in headless browsers
+- **Code Quality**: Check syntax, file structure, and package validity
+- **Chart Generation**: Create multiple test charts and validate browser compatibility
+- **Artifacts**: Upload generated charts and logs for inspection (30-day retention)

@@ -1,0 +1,157 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies (including dev dependencies)
+      run: npm ci
+      
+    - name: Run integration tests
+      run: npm run test:integration
+      
+    - name: Generate test charts for validation
+      run: |
+        # Generate multiple test charts to validate different scenarios
+        
+        # Basic scatter plot
+        node src/cli.js -x n_depth -y avg_ts data/qwen30b3a_q3.csv -o test-basic.svg
+        
+        # With grouping
+        node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv -o test-grouped.svg
+        
+        # With custom dimensions
+        node src/cli.js -w 1024 -h 768 -x model_size -y avg_ns data/qwen30b3a_q3.csv -o test-large.svg
+        
+        # Different fields
+        node src/cli.js -x n_batch -y stddev_ts -g model data/qwen30b3a_q3.csv -o test-alternate.svg
+        
+        echo "Generated test charts successfully"
+        
+    - name: Validate generated SVGs in browser
+      run: |
+        # Create a simple validation script that tests each SVG
+        cat > validate-svgs.js << 'EOF'
+        import { testSVGForErrors } from './test/integration.test.js';
+        import fs from 'fs';
+        
+        const svgFiles = [
+          'test-basic.svg',
+          'test-grouped.svg', 
+          'test-large.svg',
+          'test-alternate.svg'
+        ];
+        
+        let allPassed = true;
+        
+        for (const svgFile of svgFiles) {
+          if (!fs.existsSync(svgFile)) {
+            console.error(`❌ SVG file not found: ${svgFile}`);
+            allPassed = false;
+            continue;
+          }
+          
+          console.log(`\n🧪 Testing ${svgFile}...`);
+          
+          try {
+            const result = await testSVGForErrors(svgFile);
+            
+            if (result.success) {
+              console.log(`✅ ${svgFile} - No errors detected`);
+              
+              // Log core function test results
+              const coreResults = Object.entries(result.coreTests)
+                .map(([test, passed]) => `${test}: ${passed ? '✓' : '✗'}`)
+                .join(', ');
+              console.log(`   Core tests: ${coreResults}`);
+              
+            } else {
+              console.error(`❌ ${svgFile} - Errors detected:`);
+              result.errors.forEach((error, i) => {
+                console.error(`   ${i + 1}. ${error}`);
+              });
+              allPassed = false;
+            }
+            
+            if (result.warnings.length > 0) {
+              console.warn(`⚠️  ${svgFile} - Warnings:`);
+              result.warnings.forEach((warning, i) => {
+                console.warn(`   ${i + 1}. ${warning}`);
+              });
+            }
+            
+          } catch (error) {
+            console.error(`❌ ${svgFile} - Test failed: ${error.message}`);
+            allPassed = false;
+          }
+        }
+        
+        if (allPassed) {
+          console.log('\n🎉 All SVG validation tests passed!');
+          process.exit(0);
+        } else {
+          console.error('\n💥 Some SVG validation tests failed!');
+          process.exit(1);
+        }
+        EOF
+        
+        # Run the validation
+        node validate-svgs.js
+        
+    - name: Upload test artifacts
+      uses: actions/upload-artifact@v4
+      if: always()  # Upload even if tests fail
+      with:
+        name: integration-test-svgs-node-${{ matrix.node-version }}
+        path: |
+          test-*.svg
+          test-integration.svg
+        retention-days: 30
+        
+    - name: Upload test logs
+      uses: actions/upload-artifact@v4
+      if: failure()  # Only upload logs if something failed
+      with:
+        name: integration-test-logs-node-${{ matrix.node-version }}
+        path: |
+          *.log
+          npm-debug.log*
+        retention-days: 7
+        if-no-files-found: ignore
+
+  # Summary job that depends on all matrix jobs
+  integration-summary:
+    runs-on: ubuntu-latest
+    needs: integration
+    if: always()
+    
+    steps:
+    - name: Check integration test results
+      run: |
+        if [ "${{ needs.integration.result }}" == "success" ]; then
+          echo "✅ All integration tests passed across all Node.js versions"
+        else
+          echo "❌ Integration tests failed on one or more Node.js versions"
+          echo "Check the individual job logs for details"
+          exit 1
+        fi
