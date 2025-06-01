@@ -99,17 +99,47 @@ All workflows run on pushes to `main` and on pull requests.
 
 Generated SVG charts include built-in UI controls for real-time interaction:
 
-### Axis Selection Dropdowns
-- **Pure SVG Implementation**: Uses native SVG elements instead of HTML `foreignObject` for maximum compatibility
-- **Real-time Field Switching**: Users can change X/Y axis fields by clicking dropdown buttons
+### HTML-based Dropdowns with foreignObject
+- **Native HTML Implementation**: Uses HTML `<select>` elements embedded in SVG via `<foreignObject>`
+- **Real-time Field Switching**: Users can change X/Y axis fields using native dropdowns
 - **Smart Field Filtering**: Only numeric fields are available for axis selection
 - **Group Field Selection**: Includes all fields (numeric and string) with "None" option for grouping
+- **Better UX**: Native keyboard navigation, accessibility, and familiar dropdown behavior
 
-### Technical Implementation
-- **SVG-based dropdowns**: Custom dropdowns built with `<rect>`, `<text>`, and `<polygon>` elements
-- **Event handling**: Click and hover events for dropdown interactions
-- **Dynamic rendering**: Chart re-renders without full page reload when fields change
-- **State management**: Maintains current selections and updates chart data accordingly
+### Technical Implementation for HTML UI Elements
+When creating HTML elements within SVG using `foreignObject`:
+
+```javascript
+// Create foreignObject container
+const foreignObject = createSVGElement('foreignObject', {
+  x: x, y: y, width: 130, height: 22
+});
+
+// Create HTML elements in XHTML namespace (required for SVG compatibility)
+const selectElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'select');
+
+// Use setAttribute for styling (not style property)
+selectElement.setAttribute('style', 
+  'width: 130px; height: 20px; font-family: Arial, sans-serif; ' +
+  'border: 1px solid #ccc; background: white;'
+);
+
+// Create options in XHTML namespace
+options.forEach(option => {
+  const optionElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'option');
+  optionElement.setAttribute('value', option);
+  optionElement.textContent = option;
+  selectElement.appendChild(optionElement);
+});
+
+foreignObject.appendChild(selectElement);
+```
+
+**Key Requirements for HTML in SVG:**
+- Use `createElementNS('http://www.w3.org/1999/xhtml', 'tagName')` instead of `createElement`
+- Set styles with `setAttribute('style', ...)` not `element.style.property`
+- Create all child elements (options, etc.) in XHTML namespace
+- Event listeners work normally once elements are properly created
 
 ## Interactive API
 
