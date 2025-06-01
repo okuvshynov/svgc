@@ -52,6 +52,11 @@ This creates an interactive scatter plot showing how different model quantizatio
 
 ## Interactive Features
 
+### Built-in UI Controls
+- **Axis Selection Dropdowns**: Interactive dropdowns to change X and Y axis fields in real-time
+- **Group Selection**: Choose grouping field from available columns, including "None" option
+- **Pure SVG Implementation**: Dropdowns built with native SVG elements for maximum compatibility
+
 ### Legend Interaction
 - **Hover** over legend items to highlight corresponding data points
 - **Click** legend items to hide/show data groups

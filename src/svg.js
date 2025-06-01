@@ -34,6 +34,19 @@ export function generateSVG(chartData, data, options) {
       
       .ui-control { font-family: Arial, sans-serif; font-size: 12px; }
       .ui-select { font-family: Arial, sans-serif; font-size: 11px; }
+      
+      /* SVG Dropdown Styling */
+      .dropdown-button { cursor: pointer; }
+      .dropdown-button:hover { stroke: #999; }
+      .dropdown-option { cursor: pointer; }
+      .dropdown-option.selected { fill: #e6f3ff; }
+      
+      .ui-label {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        font-weight: bold;
+        fill: #333;
+      }
     </style>
   </defs>
   
@@ -58,11 +71,11 @@ export function generateSVG(chartData, data, options) {
     let currentChartData = null;
     let visibleGroups = new Set();
     
-    // Chart dimensions
+    // Chart dimensions (account for UI controls)
     const chartDimensions = {
       width: ${width},
       height: ${height},
-      padding: 60
+      padding: 80  // Increased padding for UI controls
     };
     
     ${generateEmbeddedChartFunctions()}
@@ -184,7 +197,7 @@ function generateLegend(chartData, options) {
   chartData.groups.forEach((group, index) => {
     const y = legendY + 20 + index * 20;
     const color = chartData.groupColorMap[group];
-    const groupId = `group-${group.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    const groupId = `group-${String(group).replace(/[^a-zA-Z0-9]/g, '-')}`;
     
     // Create interactive legend item group
     legend.push(`<g class="legend-item" data-group="${group}" id="${groupId}">
@@ -467,7 +480,223 @@ function generateEmbeddedChartFunctions() {
       return result;
     }
     
+    function renderUIControls() {
+      const controlsContainer = document.getElementById('ui-controls');
+      controlsContainer.innerHTML = '';
+      
+      // Get available numeric fields for axis selection
+      const numericFields = Object.keys(embeddedData.rows[0]).filter(field => {
+        return embeddedData.rows.some(row => typeof row[field] === 'number');
+      });
+      
+      // X-axis dropdown
+      const xAxisGroup = createUIGroup(20, 50, 'X Axis:', currentOptions.xField, numericFields, (field) => {
+        currentOptions.xField = field;
+        renderChartContent();  // Don't re-render UI controls
+      });
+      controlsContainer.appendChild(xAxisGroup);
+      
+      // Y-axis dropdown
+      const yAxisGroup = createUIGroup(200, 50, 'Y Axis:', currentOptions.yField, numericFields, (field) => {
+        currentOptions.yField = field;
+        renderChartContent();  // Don't re-render UI controls
+      });
+      controlsContainer.appendChild(yAxisGroup);
+      
+      // All fields for grouping (including string fields)
+      const allFields = Object.keys(embeddedData.rows[0]);
+      
+      // Group field dropdown (optional)
+      if (allFields.length > numericFields.length) {
+        const groupFields = ['None', ...allFields];
+        const currentGroupField = currentOptions.groupField || 'None';
+        
+        const groupAxisGroup = createUIGroup(380, 50, 'Group By:', currentGroupField, groupFields, (field) => {
+          if (field === 'None') {
+            delete currentOptions.groupField;
+          } else {
+            currentOptions.groupField = field;
+          }
+          renderChartContent();  // Don't re-render UI controls
+        });
+        controlsContainer.appendChild(groupAxisGroup);
+      }
+    }
+    
+    function createUIGroup(x, y, label, currentValue, options, onChange) {
+      const group = createSVGElement('g');
+      
+      // Label
+      const labelText = createSVGElement('text', {
+        x: x,
+        y: y - 5,
+        class: 'ui-label'
+      });
+      labelText.textContent = label;
+      group.appendChild(labelText);
+      
+      // Create SVG-based dropdown
+      const dropdownGroup = createSVGElement('g', {
+        class: 'svg-dropdown',
+        'data-open': 'false'
+      });
+      
+      // Dropdown button background
+      const buttonBg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: 140,
+        height: 20,
+        fill: '#fff',
+        stroke: '#ccc',
+        'stroke-width': 1,
+        rx: 3,
+        class: 'dropdown-button'
+      });
+      dropdownGroup.appendChild(buttonBg);
+      
+      // Current value text
+      const valueText = createSVGElement('text', {
+        x: x + 5,
+        y: y + 14,
+        class: 'dropdown-value',
+        style: 'font-family: Arial, sans-serif; font-size: 11px; fill: #333; pointer-events: none;'
+      });
+      valueText.textContent = currentValue;
+      dropdownGroup.appendChild(valueText);
+      
+      // Dropdown arrow
+      const arrow = createSVGElement('polygon', {
+        points: \`\${x + 125},\${y + 6} \${x + 135},\${y + 6} \${x + 130},\${y + 14}\`,
+        fill: '#666',
+        class: 'dropdown-arrow',
+        style: 'pointer-events: none;'
+      });
+      dropdownGroup.appendChild(arrow);
+      
+      // Dropdown list background (initially hidden)
+      const listBg = createSVGElement('rect', {
+        x: x,
+        y: y + 22,
+        width: 140,
+        height: Math.min(options.length * 18 + 4, 120),
+        fill: '#fff',
+        stroke: '#ccc',
+        'stroke-width': 1,
+        rx: 3,
+        class: 'dropdown-list-bg',
+        style: 'display: none;'
+      });
+      dropdownGroup.appendChild(listBg);
+      
+      // Dropdown options
+      const optionsGroup = createSVGElement('g', {
+        class: 'dropdown-options',
+        style: 'display: none;'
+      });
+      
+      options.forEach((option, index) => {
+        const optionY = y + 24 + index * 18;
+        
+        // Option background
+        const optionBg = createSVGElement('rect', {
+          x: x + 2,
+          y: optionY,
+          width: 136,
+          height: 16,
+          fill: 'transparent',
+          class: \`dropdown-option \${option === currentValue ? 'selected' : ''}\`,
+          'data-value': option
+        });
+        
+        // Option text
+        const optionText = createSVGElement('text', {
+          x: x + 5,
+          y: optionY + 12,
+          class: 'dropdown-option-text',
+          style: 'font-family: Arial, sans-serif; font-size: 11px; fill: #333; pointer-events: none;'
+        });
+        optionText.textContent = option;
+        
+        optionsGroup.appendChild(optionBg);
+        optionsGroup.appendChild(optionText);
+        
+        // Option hover effect
+        optionBg.addEventListener('mouseenter', () => {
+          optionBg.setAttribute('fill', '#f0f0f0');
+        });
+        
+        optionBg.addEventListener('mouseleave', () => {
+          if (option !== currentValue) {
+            optionBg.setAttribute('fill', 'transparent');
+          }
+        });
+        
+        // Option click
+        optionBg.addEventListener('click', () => {
+          // Update current value
+          valueText.textContent = option;
+          
+          // Update selected state
+          const allOptions = optionsGroup.querySelectorAll('.dropdown-option');
+          allOptions.forEach(opt => {
+            opt.classList.remove('selected');
+            opt.setAttribute('fill', 'transparent');
+          });
+          optionBg.classList.add('selected');
+          optionBg.setAttribute('fill', '#e6f3ff');
+          
+          // Hide dropdown
+          toggleDropdown(false);
+          
+          // Call onChange
+          onChange(option);
+        });
+      });
+      
+      dropdownGroup.appendChild(optionsGroup);
+      
+      // Toggle dropdown function
+      function toggleDropdown(show) {
+        const isOpen = show !== undefined ? show : dropdownGroup.getAttribute('data-open') === 'false';
+        dropdownGroup.setAttribute('data-open', isOpen.toString());
+        
+        if (isOpen) {
+          listBg.style.display = 'block';
+          optionsGroup.style.display = 'block';
+          buttonBg.setAttribute('stroke', '#007acc');
+        } else {
+          listBg.style.display = 'none';
+          optionsGroup.style.display = 'none';
+          buttonBg.setAttribute('stroke', '#ccc');
+        }
+      }
+      
+      // Button click to toggle dropdown
+      buttonBg.addEventListener('click', () => {
+        toggleDropdown();
+      });
+      
+      // Close dropdown when clicking outside (simplified)
+      document.addEventListener('click', (e) => {
+        if (!dropdownGroup.contains(e.target)) {
+          toggleDropdown(false);
+        }
+      });
+      
+      group.appendChild(dropdownGroup);
+      return group;
+    }
+
     function renderChart() {
+      // Render UI controls first
+      renderUIControls();
+      
+      // Then render chart content
+      renderChartContent();
+    }
+    
+    function renderChartContent() {
       // Generate chart data
       currentChartData = generateScatterChart(embeddedData, currentOptions);
       
@@ -643,7 +872,7 @@ function generateEmbeddedChartFunctions() {
       chartData.groups.forEach((group, index) => {
         const y = legendY + 20 + index * 20;
         const color = chartData.groupColorMap[group];
-        const groupId = \`group-\${group.replace(/[^a-zA-Z0-9]/g, '-')}\`;
+        const groupId = \`group-\${String(group).replace(/[^a-zA-Z0-9]/g, '-')}\`;
         
         const legendGroup = createSVGElement('g', {
           class: 'legend-item',

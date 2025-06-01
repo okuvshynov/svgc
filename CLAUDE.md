@@ -95,9 +95,25 @@ GitHub Actions workflows automatically:
 
 All workflows run on pushes to `main` and on pull requests.
 
+## Interactive UI Controls
+
+Generated SVG charts include built-in UI controls for real-time interaction:
+
+### Axis Selection Dropdowns
+- **Pure SVG Implementation**: Uses native SVG elements instead of HTML `foreignObject` for maximum compatibility
+- **Real-time Field Switching**: Users can change X/Y axis fields by clicking dropdown buttons
+- **Smart Field Filtering**: Only numeric fields are available for axis selection
+- **Group Field Selection**: Includes all fields (numeric and string) with "None" option for grouping
+
+### Technical Implementation
+- **SVG-based dropdowns**: Custom dropdowns built with `<rect>`, `<text>`, and `<polygon>` elements
+- **Event handling**: Click and hover events for dropdown interactions
+- **Dynamic rendering**: Chart re-renders without full page reload when fields change
+- **State management**: Maintains current selections and updates chart data accordingly
+
 ## Interactive API
 
-Generated SVG charts expose a JavaScript API for dynamic manipulation:
+Generated SVG charts expose a JavaScript API for programmatic manipulation:
 
 ```javascript
 // Change axis fields
