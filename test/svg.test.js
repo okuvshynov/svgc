@@ -55,28 +55,35 @@ describe('SVG Generator', () => {
   test('should include data points as circles', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
-    // Should have circle elements
-    assert.ok(svg.includes('<circle'));
-    assert.ok(svg.includes('cx="100"'));
-    assert.ok(svg.includes('cy="200"'));
-    assert.ok(svg.includes('r="5"'));
-    assert.ok(svg.includes('fill="#ff0000"'));
+    // With dynamic rendering, circles are created by JavaScript, not in static SVG
+    // Check that the chart area exists and the data is embedded for dynamic rendering
+    assert.ok(svg.includes('<g id="chart-area"></g>'));
+    assert.ok(svg.includes('renderPoints(chartArea, currentChartData)'));
   });
   
   test('should include axes', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
-    // Should have axis lines
-    assert.ok(svg.includes('class="axis-line"'));
+    // With dynamic rendering, axes are created by JavaScript, not in static SVG
+    // Check that the renderAxes function is embedded
+    assert.ok(svg.includes('renderAxes(chartArea, currentChartData, currentOptions)'));
     
-    // Should have axis labels
-    assert.ok(svg.includes('class="axis-text"'));
+    // Check that axis styles are defined in CSS
+    assert.ok(svg.includes('.axis-line'));
+    assert.ok(svg.includes('.axis-text'));
   });
   
   test('should include legend when grouping is used', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
-    assert.ok(svg.includes('class="legend-text"'));
+    // With dynamic rendering, legend is created by JavaScript
+    // Check that the renderLegend function is embedded
+    assert.ok(svg.includes('renderLegend(chartArea, currentChartData, currentOptions)'));
+    
+    // Check that legend styles are defined in CSS
+    assert.ok(svg.includes('.legend-text'));
+    
+    // Check that the groupField is embedded in the options
     assert.ok(svg.includes(sampleOptions.groupField));
   });
   
@@ -101,7 +108,7 @@ describe('SVG Generator', () => {
     
     // Should contain embedded data
     assert.ok(svg.includes('const embeddedData = '));
-    assert.ok(svg.includes('const embeddedOptions = '));
+    assert.ok(svg.includes('let currentOptions = '));
     
     // Should contain the actual data
     assert.ok(svg.includes('"x":1'));
@@ -129,10 +136,10 @@ describe('SVG Generator', () => {
   test('should include tooltips with data', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
-    // Should have title elements for tooltips
-    assert.ok(svg.includes('<title>'));
-    assert.ok(svg.includes('&quot;x&quot;:1'));
-    assert.ok(svg.includes('&quot;y&quot;:10'));
+    // With dynamic rendering, tooltips are created by JavaScript
+    // Check that the title creation logic is embedded
+    assert.ok(svg.includes('title.textContent = JSON.stringify(point.data)'));
+    assert.ok(svg.includes('circle.appendChild(title)'));
   });
   
   test('should handle special characters in data', () => {
@@ -152,9 +159,11 @@ describe('SVG Generator', () => {
     
     const svg = generateSVG(specialChartData, specialData, { ...sampleOptions, xField: 'name', yField: 'value' });
     
-    // Should properly escape special characters in tooltips
-    assert.ok(svg.includes('&quot;'));
-    // Should not contain unescaped quotes or angle brackets in JSON
-    assert.ok(!svg.includes('"quoted"') || svg.includes('&quot;quoted&quot;'));
+    // With dynamic rendering, special characters are handled in the embedded JSON data
+    // Check that the embedded data contains the escaped JSON
+    assert.ok(svg.includes('Test \\\"quoted\\\" &amp; &lt;special&gt;') || svg.includes('Test \\"quoted\\" & <special>'));
+    
+    // Check that tooltip creation uses JSON.stringify which handles escaping
+    assert.ok(svg.includes('title.textContent = JSON.stringify(point.data)'));
   });
 });

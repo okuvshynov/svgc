@@ -1,7 +1,7 @@
 export function generateSVG(chartData, data, options) {
   const { width, height } = options;
   
-  // Embed the original data as JSON for the interactive UI
+  // Embed the original data and chart functions as JavaScript
   const embeddedData = JSON.stringify(data);
   const embeddedOptions = JSON.stringify(options);
   
@@ -38,26 +38,34 @@ export function generateSVG(chartData, data, options) {
   </defs>
   
   <!-- Chart Title -->
-  <text x="${width/2}" y="25" text-anchor="middle" class="chart-title">
+  <text id="chart-title" x="${width/2}" y="25" text-anchor="middle" class="chart-title">
     ${options.xField} vs ${options.yField}
   </text>
   
-  <!-- Chart Area -->
-  <g id="chart-area">
-    ${generateAxes(chartData, options)}
-    ${generatePoints(chartData)}
-    ${generateLegend(chartData, options)}
-  </g>
+  <!-- Chart Area (will be populated by JavaScript) -->
+  <g id="chart-area"></g>
   
   <!-- Interactive UI Controls -->
-  <g id="ui-controls">
-    ${generateUIControls(data, options)}
-  </g>
+  <g id="ui-controls"></g>
   
-  <!-- Embedded Data and JavaScript -->
+  <!-- Embedded Data and Chart Functions -->
   <script type="text/javascript"><![CDATA[
+    // Embedded data and options
     const embeddedData = ${embeddedData};
-    const embeddedOptions = ${embeddedOptions};
+    let currentOptions = ${embeddedOptions};
+    
+    // Chart state
+    let currentChartData = null;
+    let visibleGroups = new Set();
+    
+    // Chart dimensions
+    const chartDimensions = {
+      width: ${width},
+      height: ${height},
+      padding: 60
+    };
+    
+    ${generateEmbeddedChartFunctions()}
     
     ${generateInteractiveScript()}
   ]]></script>
@@ -284,108 +292,434 @@ function formatNumber(num) {
   }
 }
 
+function generateEmbeddedChartFunctions() {
+  return `
+    // Chart generation functions embedded in SVG
+    
+    function generateTicks(min, max, targetCount) {
+      if (min === max) {
+        return [min];
+      }
+      
+      const range = max - min;
+      const roughStep = range / (targetCount - 1);
+      
+      // Find nice step size (1, 2, 2.5, 5) * 10^k
+      const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+      const normalized = roughStep / magnitude;
+      
+      let niceStep;
+      if (normalized <= 1) {
+        niceStep = 1 * magnitude;
+      } else if (normalized <= 2) {
+        niceStep = 2 * magnitude;
+      } else if (normalized <= 2.5) {
+        niceStep = 2.5 * magnitude;
+      } else if (normalized <= 5) {
+        niceStep = 5 * magnitude;
+      } else {
+        niceStep = 10 * magnitude;
+      }
+      
+      const niceMin = Math.floor(min / niceStep) * niceStep;
+      const niceMax = Math.ceil(max / niceStep) * niceStep;
+      
+      const ticks = [];
+      for (let tick = niceMin; tick <= niceMax + niceStep * 0.001; tick += niceStep) {
+        const roundedTick = Math.round(tick / niceStep) * niceStep;
+        ticks.push(roundedTick);
+      }
+      
+      return ticks;
+    }
+    
+    function formatNumber(num) {
+      if (num === 0) return '0';
+      
+      const absNum = Math.abs(num);
+      
+      if (absNum >= 1e6) {
+        const millions = num / 1e6;
+        return millions % 1 === 0 ? millions.toString() + 'M' : millions.toFixed(1) + 'M';
+      } else if (absNum >= 1e3) {
+        const thousands = num / 1e3;
+        return thousands % 1 === 0 ? thousands.toString() + 'K' : thousands.toFixed(1) + 'K';
+      } else if (absNum >= 1) {
+        if (num % 1 === 0) {
+          return num.toString();
+        } else if (num % 0.1 === 0) {
+          return num.toFixed(1);
+        } else {
+          return num.toFixed(2);
+        }
+      } else {
+        if (num % 0.01 === 0) {
+          return num.toFixed(2);
+        } else if (num % 0.001 === 0) {
+          return num.toFixed(3);
+        } else {
+          return num.toFixed(4);
+        }
+      }
+    }
+    
+    function generateScatterChart(data, options) {
+      const { width, height, padding } = chartDimensions;
+      const chartWidth = width - 2 * padding;
+      const chartHeight = height - 2 * padding;
+      
+      // Calculate scales
+      const xValues = data.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
+      const yValues = data.rows.map(row => row[options.yField]).filter(v => typeof v === 'number');
+      
+      const xMin = Math.min(...xValues);
+      const xMax = Math.max(...xValues);
+      const yMin = Math.min(...yValues);
+      const yMax = Math.max(...yValues);
+      
+      // Handle case where all values are the same (range = 0)
+      const xRange = xMax - xMin;
+      const yRange = yMax - yMin;
+      const xPadding = xRange > 0 ? xRange * 0.05 : Math.abs(xMin) * 0.1 || 1;
+      const yPadding = yRange > 0 ? yRange * 0.05 : Math.abs(yMin) * 0.1 || 1;
+      
+      const xScale = {
+        min: xMin - xPadding,
+        max: xMax + xPadding,
+        range: Math.max(xRange + 2 * xPadding, 2 * xPadding)
+      };
+      
+      const yScale = {
+        min: yMin - yPadding,
+        max: yMax + yPadding,
+        range: Math.max(yRange + 2 * yPadding, 2 * yPadding)
+      };
+      
+      // Get unique groups for coloring
+      const groups = options.groupField ? 
+        [...new Set(data.rows.map(row => row[options.groupField]))] : 
+        ['default'];
+      
+      const colors = generateColors(groups.length);
+      const groupColorMap = {};
+      groups.forEach((group, index) => {
+        groupColorMap[group] = colors[index];
+      });
+      
+      // Generate chart elements
+      const points = data.rows.map((row, index) => {
+        const x = row[options.xField];
+        const y = row[options.yField];
+        
+        if (typeof x !== 'number' || typeof y !== 'number') {
+          return null;
+        }
+        
+        const svgX = padding + ((x - xScale.min) / xScale.range) * chartWidth;
+        const svgY = padding + chartHeight - ((y - yScale.min) / yScale.range) * chartHeight;
+        
+        const group = options.groupField ? row[options.groupField] : 'default';
+        const weight = options.weightField ? row[options.weightField] : 1;
+        const radius = Math.max(2, Math.min(10, 3 + Math.sqrt(weight) * 2));
+        
+        return {
+          x: svgX,
+          y: svgY,
+          radius,
+          color: groupColorMap[group],
+          group,
+          data: row,
+          index
+        };
+      }).filter(p => p !== null);
+      
+      return {
+        points,
+        xScale,
+        yScale,
+        groupColorMap,
+        groups,
+        chartBounds: {
+          left: padding,
+          top: padding,
+          width: chartWidth,
+          height: chartHeight
+        }
+      };
+    }
+    
+    function generateColors(count) {
+      const colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+      ];
+      
+      if (count <= colors.length) {
+        return colors.slice(0, count);
+      }
+      
+      const result = [...colors];
+      for (let i = colors.length; i < count; i++) {
+        const hue = (i * 137.508) % 360;
+        result.push(\`hsl(\${hue}, 70%, 50%)\`);
+      }
+      
+      return result;
+    }
+    
+    function renderChart() {
+      // Generate chart data
+      currentChartData = generateScatterChart(embeddedData, currentOptions);
+      
+      // Clear existing chart
+      const chartArea = document.getElementById('chart-area');
+      chartArea.innerHTML = '';
+      
+      // Update title
+      const title = document.getElementById('chart-title');
+      title.textContent = \`\${currentOptions.xField} vs \${currentOptions.yField}\`;
+      
+      // Render axes
+      renderAxes(chartArea, currentChartData, currentOptions);
+      
+      // Render points
+      renderPoints(chartArea, currentChartData);
+      
+      // Render legend
+      renderLegend(chartArea, currentChartData, currentOptions);
+      
+      // Initialize interactivity
+      initializeInteractivity();
+    }
+    
+    function renderAxes(container, chartData, options) {
+      const { chartBounds, xScale, yScale } = chartData;
+      const { xField, yField } = options;
+      
+      // Main axes
+      container.appendChild(createSVGElement('line', {
+        x1: chartBounds.left,
+        y1: chartBounds.top + chartBounds.height,
+        x2: chartBounds.left + chartBounds.width,
+        y2: chartBounds.top + chartBounds.height,
+        class: 'axis-line'
+      }));
+      
+      container.appendChild(createSVGElement('line', {
+        x1: chartBounds.left,
+        y1: chartBounds.top,
+        x2: chartBounds.left,
+        y2: chartBounds.top + chartBounds.height,
+        class: 'axis-line'
+      }));
+      
+      // Generate ticks
+      const xTicks = generateTicks(xScale.min, xScale.max, 5).filter(tick => tick >= xScale.min && tick <= xScale.max);
+      const yTicks = generateTicks(yScale.min, yScale.max, 5).filter(tick => tick >= yScale.min && tick <= yScale.max);
+      
+      // Grid lines and tick marks
+      xTicks.forEach(tick => {
+        const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
+        
+        // Grid line
+        if (Math.abs(x - chartBounds.left) > 1) {
+          container.appendChild(createSVGElement('line', {
+            x1: x, y1: chartBounds.top,
+            x2: x, y2: chartBounds.top + chartBounds.height,
+            class: 'grid-line'
+          }));
+        }
+        
+        // Tick mark
+        container.appendChild(createSVGElement('line', {
+          x1: x, y1: chartBounds.top + chartBounds.height,
+          x2: x, y2: chartBounds.top + chartBounds.height + 5,
+          class: 'axis-tick'
+        }));
+        
+        // Label
+        const text = createSVGElement('text', {
+          x: x,
+          y: chartBounds.top + chartBounds.height + 18,
+          'text-anchor': 'middle',
+          class: 'axis-text'
+        });
+        text.textContent = formatNumber(tick);
+        container.appendChild(text);
+      });
+      
+      yTicks.forEach(tick => {
+        const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+        
+        // Grid line
+        if (Math.abs(y - (chartBounds.top + chartBounds.height)) > 1) {
+          container.appendChild(createSVGElement('line', {
+            x1: chartBounds.left, y1: y,
+            x2: chartBounds.left + chartBounds.width, y2: y,
+            class: 'grid-line'
+          }));
+        }
+        
+        // Tick mark
+        container.appendChild(createSVGElement('line', {
+          x1: chartBounds.left - 5, y1: y,
+          x2: chartBounds.left, y2: y,
+          class: 'axis-tick'
+        }));
+        
+        // Label
+        const text = createSVGElement('text', {
+          x: chartBounds.left - 10,
+          y: y + 4,
+          'text-anchor': 'end',
+          class: 'axis-text'
+        });
+        text.textContent = formatNumber(tick);
+        container.appendChild(text);
+      });
+      
+      // Axis titles
+      const xTitle = createSVGElement('text', {
+        x: chartBounds.left + chartBounds.width/2,
+        y: chartBounds.top + chartBounds.height + 45,
+        'text-anchor': 'middle',
+        class: 'axis-text',
+        style: 'font-weight: bold;'
+      });
+      xTitle.textContent = xField;
+      container.appendChild(xTitle);
+      
+      const yTitle = createSVGElement('text', {
+        x: chartBounds.left - 45,
+        y: chartBounds.top + chartBounds.height/2,
+        'text-anchor': 'middle',
+        class: 'axis-text',
+        style: 'font-weight: bold;',
+        transform: \`rotate(-90, \${chartBounds.left - 45}, \${chartBounds.top + chartBounds.height/2})\`
+      });
+      yTitle.textContent = yField;
+      container.appendChild(yTitle);
+    }
+    
+    function renderPoints(container, chartData) {
+      chartData.points.forEach(point => {
+        const circle = createSVGElement('circle', {
+          cx: point.x,
+          cy: point.y,
+          r: point.radius,
+          fill: point.color,
+          class: 'chart-point',
+          'data-group': point.group,
+          'data-index': point.index
+        });
+        
+        const title = createSVGElement('title');
+        title.textContent = JSON.stringify(point.data);
+        circle.appendChild(title);
+        
+        container.appendChild(circle);
+      });
+    }
+    
+    function renderLegend(container, chartData, options) {
+      if (!options.groupField || chartData.groups.length <= 1) {
+        return;
+      }
+      
+      const legendX = chartDimensions.width - 180;
+      const legendY = 50;
+      
+      // Legend title
+      const title = createSVGElement('text', {
+        x: legendX,
+        y: legendY,
+        class: 'legend-text',
+        style: 'font-weight: bold;'
+      });
+      title.textContent = options.groupField;
+      container.appendChild(title);
+      
+      // Legend items
+      chartData.groups.forEach((group, index) => {
+        const y = legendY + 20 + index * 20;
+        const color = chartData.groupColorMap[group];
+        const groupId = \`group-\${group.replace(/[^a-zA-Z0-9]/g, '-')}\`;
+        
+        const legendGroup = createSVGElement('g', {
+          class: 'legend-item',
+          'data-group': group,
+          id: groupId
+        });
+        
+        // Clickable background
+        legendGroup.appendChild(createSVGElement('rect', {
+          x: legendX - 5, y: y - 12,
+          width: 160, height: 18,
+          fill: 'transparent', stroke: 'none'
+        }));
+        
+        // Checkbox
+        legendGroup.appendChild(createSVGElement('rect', {
+          x: legendX, y: y - 8,
+          width: 8, height: 8,
+          class: 'legend-checkbox checked',
+          'data-group': group
+        }));
+        
+        // Color indicator
+        legendGroup.appendChild(createSVGElement('circle', {
+          cx: legendX + 18, cy: y - 4,
+          r: 5, fill: color,
+          class: 'legend-indicator',
+          'data-group': group
+        }));
+        
+        // Label
+        const text = createSVGElement('text', {
+          x: legendX + 28, y: y,
+          class: 'legend-text',
+          'data-group': group
+        });
+        text.textContent = group;
+        legendGroup.appendChild(text);
+        
+        container.appendChild(legendGroup);
+      });
+    }
+    
+    function createSVGElement(tag, attributes = {}) {
+      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+      for (const [key, value] of Object.entries(attributes)) {
+        element.setAttribute(key, value);
+      }
+      return element;
+    }
+  `;
+}
+
 function generateInteractiveScript() {
   return `
-    // Interactive chart functionality
+    // Interactive functionality
     console.log('SVG Chart loaded with', embeddedData.rows.length, 'data points');
     
-    // Track which groups are currently visible
-    const visibleGroups = new Set();
-    
-    // Initialize - all groups are visible by default
-    function initializeChart() {
+    function initializeInteractivity() {
+      // Initialize visible groups
+      visibleGroups.clear();
       const legendItems = document.querySelectorAll('.legend-item');
       legendItems.forEach(item => {
         const group = item.getAttribute('data-group');
         visibleGroups.add(group);
       });
-    }
-    
-    // Highlight points belonging to a specific group
-    function highlightGroup(group) {
-      const points = document.querySelectorAll('.chart-point');
-      points.forEach(point => {
-        const pointGroup = point.getAttribute('data-group');
-        if (pointGroup === group) {
-          point.classList.add('highlighted');
-          point.classList.remove('dimmed');
-        } else {
-          point.classList.add('dimmed');
-          point.classList.remove('highlighted');
-        }
-      });
-    }
-    
-    // Remove all highlighting
-    function clearHighlight() {
-      const points = document.querySelectorAll('.chart-point');
-      points.forEach(point => {
-        point.classList.remove('highlighted', 'dimmed');
-      });
-    }
-    
-    // Toggle group visibility
-    function toggleGroup(group) {
-      if (visibleGroups.has(group)) {
-        visibleGroups.delete(group);
-        hideGroup(group);
-      } else {
-        visibleGroups.add(group);
-        showGroup(group);
-      }
-      updateLegendCheckbox(group, visibleGroups.has(group));
-    }
-    
-    // Hide points for a specific group
-    function hideGroup(group) {
-      const points = document.querySelectorAll(\`[data-group="\${group}"]\`);
-      points.forEach(point => {
-        if (point.classList.contains('chart-point')) {
-          point.classList.add('hidden');
-        }
-      });
       
-      const legendItem = document.querySelector(\`.legend-item[data-group="\${group}"]\`);
-      if (legendItem) {
-        legendItem.classList.add('disabled');
-      }
+      setupEventListeners();
     }
     
-    // Show points for a specific group
-    function showGroup(group) {
-      const points = document.querySelectorAll(\`[data-group="\${group}"]\`);
-      points.forEach(point => {
-        if (point.classList.contains('chart-point')) {
-          point.classList.remove('hidden');
-        }
-      });
-      
-      const legendItem = document.querySelector(\`.legend-item[data-group="\${group}"]\`);
-      if (legendItem) {
-        legendItem.classList.remove('disabled');
-      }
-    }
-    
-    // Update legend checkbox visual state
-    function updateLegendCheckbox(group, checked) {
-      const checkbox = document.querySelector(\`.legend-checkbox[data-group="\${group}"]\`);
-      if (checkbox) {
-        if (checked) {
-          checkbox.classList.add('checked');
-        } else {
-          checkbox.classList.remove('checked');
-        }
-      }
-    }
-    
-    // Set up event listeners
-    function setupInteractivity() {
-      // Legend hover effects
+    function setupEventListeners() {
+      // Legend hover and click effects
       const legendItems = document.querySelectorAll('.legend-item');
       legendItems.forEach(item => {
         const group = item.getAttribute('data-group');
         
-        // Hover to highlight
         item.addEventListener('mouseenter', () => {
           if (visibleGroups.has(group)) {
             highlightGroup(group);
@@ -396,7 +730,6 @@ function generateInteractiveScript() {
           clearHighlight();
         });
         
-        // Click to toggle visibility
         item.addEventListener('click', (e) => {
           e.preventDefault();
           toggleGroup(group);
@@ -419,15 +752,97 @@ function generateInteractiveScript() {
       });
     }
     
-    // Initialize when SVG is loaded
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => {
-        initializeChart();
-        setupInteractivity();
+    function highlightGroup(group) {
+      const points = document.querySelectorAll('.chart-point');
+      points.forEach(point => {
+        const pointGroup = point.getAttribute('data-group');
+        if (pointGroup === group) {
+          point.classList.add('highlighted');
+          point.classList.remove('dimmed');
+        } else {
+          point.classList.add('dimmed');
+          point.classList.remove('highlighted');
+        }
       });
+    }
+    
+    function clearHighlight() {
+      const points = document.querySelectorAll('.chart-point');
+      points.forEach(point => {
+        point.classList.remove('highlighted', 'dimmed');
+      });
+    }
+    
+    function toggleGroup(group) {
+      if (visibleGroups.has(group)) {
+        visibleGroups.delete(group);
+        hideGroup(group);
+      } else {
+        visibleGroups.add(group);
+        showGroup(group);
+      }
+      updateLegendCheckbox(group, visibleGroups.has(group));
+    }
+    
+    function hideGroup(group) {
+      const points = document.querySelectorAll(\`[data-group="\${group}"]\`);
+      points.forEach(point => {
+        if (point.classList.contains('chart-point')) {
+          point.classList.add('hidden');
+        }
+      });
+      
+      const legendItem = document.querySelector(\`.legend-item[data-group="\${group}"]\`);
+      if (legendItem) {
+        legendItem.classList.add('disabled');
+      }
+    }
+    
+    function showGroup(group) {
+      const points = document.querySelectorAll(\`[data-group="\${group}"]\`);
+      points.forEach(point => {
+        if (point.classList.contains('chart-point')) {
+          point.classList.remove('hidden');
+        }
+      });
+      
+      const legendItem = document.querySelector(\`.legend-item[data-group="\${group}"]\`);
+      if (legendItem) {
+        legendItem.classList.remove('disabled');
+      }
+    }
+    
+    function updateLegendCheckbox(group, checked) {
+      const checkbox = document.querySelector(\`.legend-checkbox[data-group="\${group}"]\`);
+      if (checkbox) {
+        if (checked) {
+          checkbox.classList.add('checked');
+        } else {
+          checkbox.classList.remove('checked');
+        }
+      }
+    }
+    
+    // Public API for dynamic chart updates
+    window.updateChart = function(newOptions) {
+      currentOptions = { ...currentOptions, ...newOptions };
+      renderChart();
+    };
+    
+    window.changeAxis = function(axis, field) {
+      if (axis === 'x') {
+        currentOptions.xField = field;
+      } else if (axis === 'y') {
+        currentOptions.yField = field;
+      }
+      renderChart();
+    };
+    
+    // Initialize chart when loaded
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', renderChart);
     } else {
-      initializeChart();
-      setupInteractivity();
+      renderChart();
     }
   `;
 }

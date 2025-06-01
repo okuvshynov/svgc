@@ -9,8 +9,10 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 ## Key Design Principles
 
 - **Self-contained output**: Generated SVG files contain all data, JavaScript, and styling inline
-- **No external dependencies**: Charts work offline and don't require external JS libraries
-- **Extensible architecture**: Modular design supports adding new chart types
+- **No external dependencies**: Charts work offline and don't require external JS libraries  
+- **Dynamic rendering**: Chart generation logic embedded in SVG for runtime interactivity
+- **Programmable API**: Exposed JavaScript functions enable live chart manipulation
+- **Professional visualization**: Clean axes, grid lines, and human-readable formatting
 - **Interactive UI**: Built-in controls for selecting axes, grouping, and chart options
 
 ## Architecture
@@ -27,9 +29,17 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 
 1. CLI parses command-line arguments (`-w`, `-h`, input file)
 2. CSV parser reads and processes data file
-3. Chart generator creates visualization based on data and options
-4. UI generator adds interactive controls
-5. SVG builder combines everything into a single output file
+3. SVG builder embeds data and chart generation functions as JavaScript
+4. Browser renders chart dynamically when SVG loads
+5. Embedded API enables real-time chart updates and interaction
+
+### Dynamic Architecture
+
+The system now uses **embedded chart rendering** where:
+- Chart generation functions live inside the SVG's JavaScript
+- Data is embedded as JSON within the SVG
+- Charts render dynamically when the SVG loads
+- Public API allows live chart updates without regeneration
 
 ## Development Commands
 
@@ -42,10 +52,12 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 ## Chart Types
 
 ### Scatter Chart (Primary)
-- X/Y axis field selection
+- X/Y axis field selection with live switching capability
 - Optional weight field for circle sizes
-- Optional grouping field for colors
-- Automatic scaling and legend generation
+- Optional grouping field for colors with interactive legend
+- Automatic scaling with smart tick generation (1, 2, 2.5, 5 × 10^k)
+- Visual enhancements: tick marks, grid lines, range filtering
+- Interactive features: hover highlighting, click to hide/show groups
 
 ### Future Chart Types
 - Line charts
@@ -83,6 +95,23 @@ GitHub Actions workflows automatically:
 
 All workflows run on pushes to `main` and on pull requests.
 
+## Interactive API
+
+Generated SVG charts expose a JavaScript API for dynamic manipulation:
+
+```javascript
+// Change axis fields
+changeAxis('x', 'fieldName');
+changeAxis('y', 'fieldName'); 
+
+// Update multiple chart options
+updateChart({
+  xField: 'newField',
+  yField: 'otherField',
+  groupField: 'categoryField'
+});
+```
+
 ## Implementation Notes
 
 - Use ES6 modules for better organization
@@ -90,6 +119,9 @@ All workflows run on pushes to `main` and on pull requests.
 - SVG coordinate system: origin at top-left, positive Y downward
 - Color schemes should be accessible and printer-friendly
 - All measurements in the SVG should be scalable based on specified dimensions
+- Chart rendering logic is embedded within SVG for dynamic updates
+- Axis ticks use smart intervals for professional appearance
+- Grid lines and tick marks enhance readability
 
 ## Development Practices
 

@@ -5,7 +5,9 @@ Generate interactive, self-contained SVG charts from CSV data.
 ## Features
 
 - **Self-contained**: No external dependencies, charts work offline
-- **Interactive**: Built-in controls for field selection and grouping
+- **Dynamic & Interactive**: Live axis switching, hover highlighting, click to hide/show groups
+- **Programmable**: Embedded JavaScript API for real-time chart manipulation
+- **Professional**: Clean tick marks, grid lines, and human-readable axis labels
 - **Extensible**: Modular architecture supports multiple chart types
 - **Command-line**: Simple CLI interface with sensible defaults
 
@@ -47,6 +49,37 @@ node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > examples/p
 ```
 
 This creates an interactive scatter plot showing how different model quantizations (Q2_K, Q3_K, Q4_K, etc.) perform across various context depths.
+
+## Interactive Features
+
+### Legend Interaction
+- **Hover** over legend items to highlight corresponding data points
+- **Click** legend items to hide/show data groups
+- **Visual feedback** with checkboxes and smooth transitions
+
+### Dynamic Chart API
+Once generated, charts can be modified programmatically:
+
+```javascript
+// Change X axis to a different field
+changeAxis('x', 'model_size');
+
+// Change Y axis 
+changeAxis('y', 'stddev_ts');
+
+// Update multiple options at once
+updateChart({
+  xField: 'n_gen',
+  yField: 'avg_ts', 
+  groupField: 'model_type'
+});
+```
+
+### Professional Visuals
+- **Smart axis ticks**: Clean intervals (1, 2, 2.5, 5 × 10^k)
+- **Grid lines**: Subtle dotted guides for easy value reading  
+- **Tick marks**: Visual indicators on axes
+- **Range filtering**: Only shows ticks within data bounds
 
 ## Development
 
