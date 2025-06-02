@@ -184,15 +184,16 @@ export function generateEmbeddedChartFunctions() {
     }
     
     // Filter management
-    let currentFilters = [];
+    let pendingFilters = [];
+    let appliedFilters = [];
     
     function applyFilters(rows) {
-      if (currentFilters.length === 0) {
+      if (appliedFilters.length === 0) {
         return rows;
       }
       
       return rows.filter(row => {
-        return currentFilters.every(filter => evaluateFilter(row, filter));
+        return appliedFilters.every(filter => evaluateFilter(row, filter));
       });
     }
     
@@ -228,23 +229,37 @@ export function generateEmbeddedChartFunctions() {
         operator: '=',
         value: ''
       };
-      currentFilters.push(newFilter);
+      pendingFilters.push(newFilter);
       renderUIControls();
     }
     
     function removeFilter(filterId) {
-      currentFilters = currentFilters.filter(f => f.id !== filterId);
-      renderChartContent();
+      pendingFilters = pendingFilters.filter(f => f.id !== filterId);
       renderUIControls();
     }
     
     function updateFilter(filterId, property, value) {
-      const filter = currentFilters.find(f => f.id === filterId);
+      const filter = pendingFilters.find(f => f.id === filterId);
       if (filter) {
         filter[property] = value;
-        renderChartContent();
+        // Don't re-render UI controls to avoid losing focus
       }
     }
+    
+    function applyPendingFilters() {
+      // Copy pending filters to applied filters
+      appliedFilters = [...pendingFilters];
+      renderChartContent();
+      renderUIControls();
+    }
+    
+    function clearAllFilters() {
+      pendingFilters = [];
+      appliedFilters = [];
+      renderChartContent();
+      renderUIControls();
+    }
+    
     
     function createSVGElement(tag, attributes = {}) {
       const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -344,19 +359,28 @@ export function generateRenderingFunctions() {
       let currentY = y + 25;
       
       // Render existing filters
-      currentFilters.forEach((filter, index) => {
+      pendingFilters.forEach((filter, index) => {
         const filterGroup = createFilterRow(x, currentY, width, filter);
         container.appendChild(filterGroup);
         currentY += 30;
       });
       
+      // Filter action buttons row
+      let buttonY = currentY + 5;
+      
       // Add Filter button
-      const addFilterButton = createAddFilterButton(x, currentY, width);
+      const addFilterButton = createAddFilterButton(x, buttonY, 80);
       container.appendChild(addFilterButton);
       
-      // Clear All button (if there are filters)
-      if (currentFilters.length > 0) {
-        const clearAllButton = createClearAllButton(x + width - 80, currentY, 75);
+      // Apply Filters button (if there are pending filters)
+      if (pendingFilters.length > 0) {
+        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90);
+        container.appendChild(applyButton);
+      }
+      
+      // Clear All button (if there are any filters)
+      if (pendingFilters.length > 0 || appliedFilters.length > 0) {
+        const clearAllButton = createClearAllButton(x + 180, buttonY, 70);
         container.appendChild(clearAllButton);
       }
     }
@@ -457,7 +481,7 @@ export function generateRenderingFunctions() {
       const bg = createSVGElement('rect', {
         x: x,
         y: y,
-        width: 80,
+        width: width,
         height: 20,
         fill: '#4CAF50',
         stroke: '#45a049',
@@ -468,15 +492,46 @@ export function generateRenderingFunctions() {
       
       // Text
       const text = createSVGElement('text', {
-        x: x + 40,
+        x: x + width/2,
         y: y + 14,
         'text-anchor': 'middle',
         style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
       });
-      text.textContent = '+ Add Filter';
+      text.textContent = '+ Add';
       group.appendChild(text);
       
       group.addEventListener('click', addFilter);
+      
+      return group;
+    }
+    
+    function createApplyFiltersButton(x, y, width) {
+      const group = createSVGElement('g', { class: 'apply-filters-btn', style: 'cursor: pointer;' });
+      
+      // Background - always active blue
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: width,
+        height: 20,
+        fill: '#2196F3',
+        stroke: '#1976D2',
+        'stroke-width': 1,
+        rx: 3
+      });
+      group.appendChild(bg);
+      
+      // Text
+      const text = createSVGElement('text', {
+        x: x + width/2,
+        y: y + 14,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      text.textContent = 'Apply Filters';
+      group.appendChild(text);
+      
+      group.addEventListener('click', applyPendingFilters);
       
       return group;
     }
@@ -507,11 +562,7 @@ export function generateRenderingFunctions() {
       text.textContent = 'Clear All';
       group.appendChild(text);
       
-      group.addEventListener('click', () => {
-        currentFilters = [];
-        renderChartContent();
-        renderUIControls();
-      });
+      group.addEventListener('click', clearAllFilters);
       
       return group;
     }
