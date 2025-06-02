@@ -149,7 +149,21 @@ export function generateEmbeddedChartFunctions() {
     }
     
     function removeFilter(filterId) {
+      // Remove from pending filters
       pendingFilters = pendingFilters.filter(f => f.id !== filterId);
+      
+      // Also remove from applied filters if it exists there
+      const wasApplied = currentOptions.filters && 
+        currentOptions.filters.some(f => f.id === filterId);
+      
+      if (wasApplied) {
+        // Update applied filters
+        currentOptions.filters = currentOptions.filters.filter(f => f.id !== filterId);
+        // Re-render chart with updated filters
+        renderChartContent();
+      }
+      
+      // Always re-render UI controls
       renderUIControls();
     }
     
@@ -163,8 +177,8 @@ export function generateEmbeddedChartFunctions() {
     
     function applyPendingFilters() {
       log_debug('Applying filters:', pendingFilters);
-      // Save pending filters to current options
-      currentOptions.filters = [...pendingFilters];
+      // Save pending filters to current options (deep copy to preserve IDs)
+      currentOptions.filters = pendingFilters.map(f => ({ ...f }));
       renderChartContent();
       renderUIControls();
     }

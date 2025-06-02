@@ -286,11 +286,6 @@ export function generateEmbeddedHistogramChart() {
     function renderHistogramControls(container, x, y, width) {
       let currentY = y;
       
-      log_debug('renderHistogramControls called', {
-        histogramField: currentOptions.histogramField,
-        binCount: currentOptions.binCount
-      });
-      
       // All fields for histogram
       const allFields = Object.keys(embeddedData.rows[0]);
       
@@ -303,11 +298,6 @@ export function generateEmbeddedHistogramChart() {
         
         // Use first numeric field if available, otherwise first field
         currentOptions.histogramField = numericFields.length > 0 ? numericFields[0] : allFields[0];
-        
-        log_debug('Auto-selected histogram field', {
-          field: currentOptions.histogramField,
-          isNumeric: numericFields.includes(currentOptions.histogramField)
-        });
         
         // Auto-suggest bin count for numeric fields
         const values = embeddedData.rows
@@ -343,14 +333,6 @@ export function generateEmbeddedHistogramChart() {
       const numericValues = values.filter(v => typeof v === 'number');
       const stringValues = values.filter(v => typeof v === 'string');
       const isNumeric = numericValues.length > 0 && stringValues.length === 0;
-      
-      log_debug('Field type check', {
-        field: currentOptions.histogramField,
-        totalValues: values.length,
-        numericCount: numericValues.length,
-        stringCount: stringValues.length,
-        isNumeric: isNumeric
-      });
       
       if (isNumeric) {
         // Initialize bin count if not set
