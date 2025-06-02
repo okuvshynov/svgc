@@ -50,15 +50,17 @@ export function generateEmbeddedChartFunctions() {
       
       const absNum = Math.abs(num);
       
-      if (absNum >= 1e9) {
-        const billions = num / 1e9;
-        return billions % 1 === 0 ? billions.toString() + 'B' : billions.toFixed(1) + 'B';
-      } else if (absNum >= 1e6) {
-        const millions = num / 1e6;
-        return millions % 1 === 0 ? millions.toString() + 'M' : millions.toFixed(1) + 'M';
-      } else if (absNum >= 1e3) {
-        const thousands = num / 1e3;
-        return thousands % 1 === 0 ? thousands.toString() + 'K' : thousands.toFixed(1) + 'K';
+      // Use scientific notation for very large or very small numbers
+      if (absNum >= 1e6 || (absNum < 1e-3 && absNum > 0)) {
+        const exponent = Math.floor(Math.log10(absNum));
+        const mantissa = num / Math.pow(10, exponent);
+        
+        // Format mantissa to avoid unnecessary decimals
+        const formattedMantissa = mantissa % 1 === 0 ? 
+          mantissa.toString() : 
+          mantissa.toFixed(1);
+        
+        return \`\${formattedMantissa}×10^\${exponent}\`;
       } else if (absNum >= 1) {
         if (num % 1 === 0) {
           return num.toString();
