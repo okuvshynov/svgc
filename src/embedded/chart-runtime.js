@@ -76,19 +76,43 @@ export function generateEmbeddedChartFunctions() {
     }
     
     function generateScatterChart(data, options) {
+      log_debug('generateScatterChart called with:', { 
+        dataRows: data.rows.length, 
+        options: options,
+        appliedFilters: appliedFilters
+      });
+      
       const { width, height, padding } = chartDimensions;
-      const controlPanelWidth = 180; // Account for control panel
+      const controlPanelWidth = 240; // Account for wider control panel
       const chartWidth = width - controlPanelWidth - padding - 20;
       const chartHeight = height - 2 * padding;
       
-      // Calculate scales
-      const xValues = data.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
-      const yValues = data.rows.map(row => row[options.yField]).filter(v => typeof v === 'number');
+      // Apply filters to data
+      const filteredData = { ...data, rows: applyFilters(data.rows) };
+      
+      log_debug('Data filtering result:', {
+        originalRows: data.rows.length,
+        filteredRows: filteredData.rows.length,
+        filtersApplied: appliedFilters.length
+      });
+      
+      // Calculate scales using filtered data
+      const xValues = filteredData.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
+      const yValues = filteredData.rows.map(row => row[options.yField]).filter(v => typeof v === 'number');
       
       const xMin = Math.min(...xValues);
       const xMax = Math.max(...xValues);
       const yMin = Math.min(...yValues);
       const yMax = Math.max(...yValues);
+      
+      log_debug('Scale calculation:', {
+        xField: options.xField,
+        yField: options.yField,
+        xValues: xValues.length,
+        yValues: yValues.length,
+        xRange: [xMin, xMax],
+        yRange: [yMin, yMax]
+      });
       
       // Handle case where all values are the same (range = 0)
       const xRange = xMax - xMin;
@@ -108,9 +132,9 @@ export function generateEmbeddedChartFunctions() {
         range: Math.max(yRange + 2 * yPadding, 2 * yPadding)
       };
       
-      // Get unique groups for coloring
+      // Get unique groups for coloring using filtered data
       const groups = options.groupField ? 
-        [...new Set(data.rows.map(row => row[options.groupField]))] : 
+        [...new Set(filteredData.rows.map(row => row[options.groupField]))] : 
         ['default'];
       
       const colors = generateColors(groups.length);
@@ -119,8 +143,8 @@ export function generateEmbeddedChartFunctions() {
         groupColorMap[group] = colors[index];
       });
       
-      // Generate chart elements
-      const points = data.rows.map((row, index) => {
+      // Generate chart elements using filtered data
+      const points = filteredData.rows.map((row, index) => {
         const x = row[options.xField];
         const y = row[options.yField];
         
@@ -180,6 +204,85 @@ export function generateEmbeddedChartFunctions() {
       return result;
     }
     
+    // Filter management
+    let pendingFilters = [];
+    let appliedFilters = [];
+    
+    function applyFilters(rows) {
+      if (appliedFilters.length === 0) {
+        return rows;
+      }
+      
+      return rows.filter(row => {
+        return appliedFilters.every(filter => evaluateFilter(row, filter));
+      });
+    }
+    
+    function evaluateFilter(row, filter) {
+      const value = row[filter.field];
+      const filterValue = filter.value;
+      
+      // Convert filter value to appropriate type
+      let typedFilterValue = filterValue;
+      if (typeof value === 'number' && !isNaN(Number(filterValue))) {
+        typedFilterValue = Number(filterValue);
+      }
+      
+      switch (filter.operator) {
+        case '=': return value == typedFilterValue;
+        case '!=': return value != typedFilterValue;
+        case '>': return value > typedFilterValue;
+        case '<': return value < typedFilterValue;
+        case '>=': return value >= typedFilterValue;
+        case '<=': return value <= typedFilterValue;
+        case 'contains': return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+        case 'starts_with': return String(value).toLowerCase().startsWith(String(filterValue).toLowerCase());
+        case 'ends_with': return String(value).toLowerCase().endsWith(String(filterValue).toLowerCase());
+        default: return true;
+      }
+    }
+    
+    function addFilter() {
+      const allFields = Object.keys(embeddedData.rows[0]);
+      const newFilter = {
+        id: Date.now(),
+        field: allFields[0],
+        operator: '=',
+        value: ''
+      };
+      pendingFilters.push(newFilter);
+      renderUIControls();
+    }
+    
+    function removeFilter(filterId) {
+      pendingFilters = pendingFilters.filter(f => f.id !== filterId);
+      renderUIControls();
+    }
+    
+    function updateFilter(filterId, property, value) {
+      const filter = pendingFilters.find(f => f.id === filterId);
+      if (filter) {
+        filter[property] = value;
+        // Don't re-render UI controls to avoid losing focus
+      }
+    }
+    
+    function applyPendingFilters() {
+      log_debug('Applying filters:', pendingFilters);
+      // Copy pending filters to applied filters
+      appliedFilters = [...pendingFilters];
+      renderChartContent();
+      renderUIControls();
+    }
+    
+    function clearAllFilters() {
+      pendingFilters = [];
+      appliedFilters = [];
+      renderChartContent();
+      renderUIControls();
+    }
+    
+    
     function createSVGElement(tag, attributes = {}) {
       const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
       for (const [key, value] of Object.entries(attributes)) {
@@ -196,8 +299,8 @@ export function generateRenderingFunctions() {
       const controlsContainer = document.getElementById('ui-controls');
       controlsContainer.innerHTML = '';
       
-      // Control panel dimensions
-      const panelWidth = 160;
+      // Control panel dimensions - made wider for filtering
+      const panelWidth = 220;
       const panelX = 10;
       const panelY = 50;
       
@@ -259,25 +362,252 @@ export function generateRenderingFunctions() {
         renderChartContent();
       });
       controlsContainer.appendChild(groupAxisGroup);
+      
+      // Filters section
+      renderFiltersSection(controlsContainer, panelX + 10, panelY + 200, panelWidth - 20);
     }
     
-    function createUIGroup(x, y, label, currentValue, options, onChange) {
+    function renderFiltersSection(container, x, y, width) {
+      // Filters header
+      const filtersHeader = createSVGElement('text', {
+        x: x,
+        y: y,
+        class: 'ui-label',
+        style: 'font-weight: bold; font-size: 14px;'
+      });
+      filtersHeader.textContent = 'Filters';
+      container.appendChild(filtersHeader);
+      
+      let currentY = y + 25;
+      
+      // Render existing filters
+      pendingFilters.forEach((filter, index) => {
+        const filterGroup = createFilterRow(x, currentY, width, filter);
+        container.appendChild(filterGroup);
+        currentY += 30;
+      });
+      
+      // Filter action buttons row
+      let buttonY = currentY + 5;
+      
+      // Add Filter button
+      const addFilterButton = createAddFilterButton(x, buttonY, 80);
+      container.appendChild(addFilterButton);
+      
+      // Apply Filters button (if there are pending filters)
+      if (pendingFilters.length > 0) {
+        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90);
+        container.appendChild(applyButton);
+      }
+      
+      // Clear All button (if there are any filters)
+      if (pendingFilters.length > 0 || appliedFilters.length > 0) {
+        const clearAllButton = createClearAllButton(x + 180, buttonY, 70);
+        container.appendChild(clearAllButton);
+      }
+    }
+    
+    function createFilterRow(x, y, width, filter) {
       const group = createSVGElement('g');
       
-      // Label
-      const labelText = createSVGElement('text', {
-        x: x,
-        y: y - 5,
-        class: 'ui-label'
+      // Get all fields for dropdown
+      const allFields = Object.keys(embeddedData.rows[0]);
+      
+      // Field dropdown (80px width)
+      const fieldGroup = createUIGroup(x, y, '', filter.field, allFields, (value) => {
+        updateFilter(filter.id, 'field', value);
+      }, 80);
+      group.appendChild(fieldGroup);
+      
+      // Operator dropdown (50px width)  
+      const operators = ['=', '!=', '>', '<', '>=', '<=', 'contains'];
+      const operatorGroup = createUIGroup(x + 85, y, '', filter.operator, operators, (value) => {
+        updateFilter(filter.id, 'operator', value);
+      }, 50);
+      group.appendChild(operatorGroup);
+      
+      // Value input (60px width)
+      const valueInput = createValueInput(x + 140, y, 50, filter.value, (value) => {
+        updateFilter(filter.id, 'value', value);
       });
-      labelText.textContent = label;
-      group.appendChild(labelText);
+      group.appendChild(valueInput);
+      
+      // Remove button (15px width)
+      const removeButton = createRemoveButton(x + 195, y, filter.id);
+      group.appendChild(removeButton);
+      
+      return group;
+    }
+    
+    function createValueInput(x, y, width, currentValue, onChange) {
+      const foreignObject = createSVGElement('foreignObject', {
+        x: x,
+        y: y,
+        width: width,
+        height: 22
+      });
+      
+      const input = document.createElementNS('http://www.w3.org/1999/xhtml', 'input');
+      input.setAttribute('type', 'text');
+      input.setAttribute('value', currentValue);
+      input.setAttribute('style', 
+        \`width: \${width-4}px; height: 18px; font-family: Arial, sans-serif; font-size: 10px; \` +
+        'border: 1px solid #ccc; border-radius: 3px; padding: 1px;'
+      );
+      
+      input.addEventListener('input', (e) => {
+        onChange(e.target.value);
+      });
+      
+      foreignObject.appendChild(input);
+      return foreignObject;
+    }
+    
+    function createRemoveButton(x, y, filterId) {
+      const group = createSVGElement('g', { class: 'remove-filter-btn', style: 'cursor: pointer;' });
+      
+      // Background
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y + 2,
+        width: 16,
+        height: 16,
+        fill: '#ff6b6b',
+        stroke: '#ff5252',
+        'stroke-width': 1,
+        rx: 3
+      });
+      group.appendChild(bg);
+      
+      // X symbol
+      const xText = createSVGElement('text', {
+        x: x + 8,
+        y: y + 13,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      xText.textContent = '×';
+      group.appendChild(xText);
+      
+      group.addEventListener('click', () => {
+        removeFilter(filterId);
+      });
+      
+      return group;
+    }
+    
+    function createAddFilterButton(x, y, width) {
+      const group = createSVGElement('g', { class: 'add-filter-btn', style: 'cursor: pointer;' });
+      
+      // Background
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: width,
+        height: 20,
+        fill: '#4CAF50',
+        stroke: '#45a049',
+        'stroke-width': 1,
+        rx: 3
+      });
+      group.appendChild(bg);
+      
+      // Text
+      const text = createSVGElement('text', {
+        x: x + width/2,
+        y: y + 14,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      text.textContent = '+ Add';
+      group.appendChild(text);
+      
+      group.addEventListener('click', addFilter);
+      
+      return group;
+    }
+    
+    function createApplyFiltersButton(x, y, width) {
+      const group = createSVGElement('g', { class: 'apply-filters-btn', style: 'cursor: pointer;' });
+      
+      // Background - always active blue
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: width,
+        height: 20,
+        fill: '#2196F3',
+        stroke: '#1976D2',
+        'stroke-width': 1,
+        rx: 3
+      });
+      group.appendChild(bg);
+      
+      // Text
+      const text = createSVGElement('text', {
+        x: x + width/2,
+        y: y + 14,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      text.textContent = 'Apply Filters';
+      group.appendChild(text);
+      
+      group.addEventListener('click', applyPendingFilters);
+      
+      return group;
+    }
+    
+    function createClearAllButton(x, y, width) {
+      const group = createSVGElement('g', { class: 'clear-all-btn', style: 'cursor: pointer;' });
+      
+      // Background
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: width,
+        height: 20,
+        fill: '#f44336',
+        stroke: '#d32f2f',
+        'stroke-width': 1,
+        rx: 3
+      });
+      group.appendChild(bg);
+      
+      // Text
+      const text = createSVGElement('text', {
+        x: x + width/2,
+        y: y + 14,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      text.textContent = 'Clear All';
+      group.appendChild(text);
+      
+      group.addEventListener('click', clearAllFilters);
+      
+      return group;
+    }
+    
+    function createUIGroup(x, y, label, currentValue, options, onChange, width = 130) {
+      const group = createSVGElement('g');
+      
+      // Label (only if provided)
+      if (label) {
+        const labelText = createSVGElement('text', {
+          x: x,
+          y: y - 5,
+          class: 'ui-label'
+        });
+        labelText.textContent = label;
+        group.appendChild(labelText);
+      }
       
       // Create foreignObject for HTML select
       const foreignObject = createSVGElement('foreignObject', {
         x: x,
         y: y,
-        width: 130,
+        width: width,
         height: 22
       });
       
@@ -286,7 +616,7 @@ export function generateRenderingFunctions() {
       
       // Set style attribute as string since we're in XML context
       selectElement.setAttribute('style', 
-        'width: 130px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; ' +
+        \`width: \${width}px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; \` +
         'border: 1px solid #ccc; border-radius: 3px; background: white; padding: 2px; outline: none;'
       );
       
@@ -313,6 +643,7 @@ export function generateRenderingFunctions() {
     }
 
     function renderChart() {
+      log_debug('renderChart called');
       // Render UI controls first
       renderUIControls();
       
@@ -321,6 +652,7 @@ export function generateRenderingFunctions() {
     }
     
     function renderChartContent() {
+      log_debug('renderChartContent called with options:', currentOptions);
       // Generate chart data
       currentChartData = generateScatterChart(embeddedData, currentOptions);
       

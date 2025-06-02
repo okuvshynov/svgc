@@ -55,11 +55,15 @@ This creates an interactive scatter plot showing how different model quantizatio
 ### Built-in UI Controls
 - **Axis Selection Dropdowns**: Interactive dropdowns to change X and Y axis fields in real-time
 - **Group Selection**: Choose grouping field from available columns, including "None" option
-- **Pure SVG Implementation**: Dropdowns built with native SVG elements for maximum compatibility
+- **Data Filtering**: Add multiple filters to show/hide data points based on field values
+- **HTML Integration**: Native HTML controls embedded via `foreignObject` for optimal usability
 
-### Legend Interaction
-- **Hover** over legend items to highlight corresponding data points
-- **Click** legend items to hide/show data groups
+### Interactive Data Exploration
+- **Legend Interaction**: Hover to highlight, click to hide/show data groups
+- **Real-time Filtering**: Add filters like `model != 'Q8_K_ZL'` or `n_depth > 1000`
+- **Multiple Filter Support**: Combine multiple conditions with AND logic
+- **Smart Operators**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts with`, `ends with`
+- **Type-aware Filtering**: Automatically handles numeric vs string comparisons
 - **Visual feedback** with checkboxes and smooth transitions
 
 ### Dynamic Chart API
