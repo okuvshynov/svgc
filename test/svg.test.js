@@ -56,17 +56,17 @@ describe('SVG Generator', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
     // With dynamic rendering, circles are created by JavaScript, not in static SVG
-    // Check that the chart area exists and the data is embedded for dynamic rendering
+    // Check that the chart area exists and the chart handler is called
     assert.ok(svg.includes('<g id="chart-area"></g>'));
-    assert.ok(svg.includes('renderPoints(chartArea, currentChartData)'));
+    assert.ok(svg.includes('chartHandler.render(chartArea, currentChartData, currentOptions)'));
   });
   
   test('should include axes', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
     // With dynamic rendering, axes are created by JavaScript, not in static SVG
-    // Check that the renderAxes function is embedded
-    assert.ok(svg.includes('renderAxes(chartArea, currentChartData, currentOptions)'));
+    // Check that the chart handler is called for rendering
+    assert.ok(svg.includes('chartHandler.render(chartArea, currentChartData, currentOptions)'));
     
     // Check that axis styles are defined in CSS
     assert.ok(svg.includes('.axis-line'));
@@ -76,9 +76,9 @@ describe('SVG Generator', () => {
   test('should include legend when grouping is used', () => {
     const svg = generateSVG(sampleChartData, sampleData, sampleOptions);
     
-    // With dynamic rendering, legend is created by JavaScript
-    // Check that the renderLegend function is embedded
-    assert.ok(svg.includes('renderLegend(chartArea, currentChartData, currentOptions)'));
+    // With dynamic rendering, legend is created by JavaScript through chart handler
+    // Check that the chart handler is called for rendering
+    assert.ok(svg.includes('chartHandler.render(chartArea, currentChartData, currentOptions)'));
     
     // Check that legend styles are defined in CSS
     assert.ok(svg.includes('.legend-text'));

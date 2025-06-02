@@ -5,10 +5,12 @@ Generate interactive, self-contained SVG charts from CSV data.
 ## Features
 
 - **Self-contained**: No external dependencies, charts work offline
-- **Dynamic & Interactive**: Live axis switching, hover highlighting, click to hide/show groups
+- **Multiple Chart Types**: Scatter plots and histograms with more types coming
+- **Dynamic & Interactive**: Live chart type switching, axis selection, hover highlighting
+- **Data Filtering**: Interactive filtering with multiple operators and real-time updates
 - **Programmable**: Embedded JavaScript API for real-time chart manipulation
 - **Professional**: Clean tick marks, grid lines, and human-readable axis labels
-- **Extensible**: Modular architecture supports multiple chart types
+- **Extensible**: Modular architecture makes adding new chart types simple
 - **Command-line**: Simple CLI interface with sensible defaults
 
 ## Quick Start
@@ -17,11 +19,14 @@ Generate interactive, self-contained SVG charts from CSV data.
 # Install dependencies
 npm install
 
-# Generate a chart
-node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg
+# Generate a scatter plot
+node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > scatter.svg
 
-# With custom dimensions
-node src/cli.js -w 1024 -h 768 -x field1 -y field2 data.csv -o output.svg
+# Generate a histogram
+node src/cli.js -t histogram -f model data/qwen30b3a_q3.csv > histogram.svg
+
+# Generate a numeric histogram with custom bins
+node src/cli.js -t histogram -f avg_ts -b 15 data/qwen30b3a_q3.csv > numeric_histogram.svg
 ```
 
 ## Usage
@@ -33,27 +38,52 @@ Options:
   -w, --width <pixels>      Chart width (default: 800)
   -h, --height <pixels>     Chart height (default: 600)
   -o, --output <file>       Output SVG file (default: stdout)
+  -t, --type <type>         Chart type: scatter, histogram (default: scatter)
+  
+  Scatter chart options:
   -x, --x-field <field>     Field to use for X axis
   -y, --y-field <field>     Field to use for Y axis
   -s, --size-field <field>  Field to use for point sizes (optional)
   -g, --group-field <field> Field to use for grouping/colors (optional)
+  
+  Histogram options:
+  -f, --field <field>       Field to use for histogram
+  -b, --bins <count>        Number of bins for numeric data (default: auto)
+  
+  Other options:
+  --debug                   Enable debug logging in generated SVG
   --help                    Show help message
 ```
 
-## Example
+## Examples
 
-The included sample data shows LLM performance benchmarks. Generate a chart showing the relationship between context depth and throughput:
+The included sample data shows LLM performance benchmarks. Here are different ways to visualize this data:
 
+### Scatter Plot - Performance Analysis
 ```bash
 node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > examples/performance.svg
 ```
+Creates an interactive scatter plot showing how different model quantizations (Q2_K, Q3_K, Q4_K, etc.) perform across various context depths.
 
-This creates an interactive scatter plot showing how different model quantizations (Q2_K, Q3_K, Q4_K, etc.) perform across various context depths.
+### Histogram - Model Distribution
+```bash
+node src/cli.js -t histogram -f model data/qwen30b3a_q3.csv > examples/model_distribution.svg
+```
+Creates a bar chart showing the count of each model type in the dataset.
+
+### Histogram - Performance Distribution
+```bash
+node src/cli.js -t histogram -f avg_ts -b 20 data/qwen30b3a_q3.csv > examples/performance_dist.svg
+```
+Creates a histogram showing the distribution of throughput values with 20 bins.
 
 ## Interactive Features
 
 ### Built-in UI Controls
-- **Axis Selection Dropdowns**: Interactive dropdowns to change X and Y axis fields in real-time
+- **Chart Type Selector**: Switch between scatter plots and histograms in real-time
+- **Axis Selection Dropdowns**: Interactive dropdowns to change X and Y axis fields (scatter plots)
+- **Field Selection**: Choose which field to visualize in histograms
+- **Bin Count Control**: Adjust the number of bins for numeric histograms
 - **Group Selection**: Choose grouping field from available columns, including "None" option
 - **Data Filtering**: Add multiple filters to show/hide data points based on field values
 - **HTML Integration**: Native HTML controls embedded via `foreignObject` for optimal usability
@@ -142,14 +172,18 @@ The codebase is organized into focused, modular components:
 
 ```
 src/
-├── cli.js                    # Command-line interface
+├── cli.js                    # Command-line interface and argument parsing
 ├── csv.js                    # CSV parsing and data processing  
 ├── svg.js                    # Main SVG generation coordinator
 ├── charts/
-│   └── scatter.js            # Scatter plot chart generator
+│   ├── scatter.js            # Scatter plot chart generator
+│   └── histogram.js          # Histogram/bar chart generator
 ├── embedded/                 # Browser-side JavaScript (embedded in SVG)
-│   ├── chart-runtime.js      # Chart rendering functions
-│   └── interactivity.js      # Event handlers and interactive features
+│   ├── chart-runtime.js      # Generic chart rendering framework
+│   ├── interactivity.js      # Event handlers and interactive features
+│   └── charts/               # Chart-specific embedded modules
+│       ├── scatter-chart.js  # Scatter plot rendering and controls
+│       └── histogram-chart.js # Histogram rendering and controls
 ├── generators/               # SVG element generation utilities
 │   └── svg-elements.js       # Axes, points, legend, CSS generation
 └── utils/

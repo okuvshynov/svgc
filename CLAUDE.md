@@ -47,14 +47,16 @@ The system now uses **embedded chart rendering** where:
 ## Development Commands
 
 - **Run the tool**: `node src/cli.js [options] <csv-file>`
-- **Example usage**: `node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg`
-- **With dimensions**: `node src/cli.js -w 1024 -h 768 -x field1 -y field2 data.csv -o output.svg`
+- **Scatter plot**: `node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg`
+- **Histogram**: `node src/cli.js -t histogram -f model data/qwen30b3a_q3.csv > histogram.svg`
+- **Numeric histogram**: `node src/cli.js -t histogram -f avg_ts -b 15 data/qwen30b3a_q3.csv > numeric_hist.svg`
+- **With dimensions**: `node src/cli.js -w 1024 -h 768 -t scatter -x field1 -y field2 data.csv -o output.svg`
 - **Run tests**: `npm test`
 - **Install dependencies**: `npm install`
 
 ## Chart Types
 
-### Scatter Chart (Primary)
+### Scatter Chart
 - X/Y axis field selection with live switching capability
 - Optional weight field for circle sizes
 - Optional grouping field for colors with interactive legend
@@ -62,11 +64,19 @@ The system now uses **embedded chart rendering** where:
 - Visual enhancements: tick marks, grid lines, range filtering
 - Interactive features: hover highlighting, click to hide/show groups
 
+### Histogram/Bar Chart
+- Single field selection for data distribution visualization
+- Automatic detection of numeric vs categorical data
+- **Numeric histograms**: Configurable bin count with smart defaults (Sturges' rule)
+- **Categorical bar charts**: Sorted by frequency with all unique values
+- Bin count control for numeric data (3-100 bins)
+- Automatic bin labeling with appropriate precision
+- Y-axis shows counts with clean tick intervals
+
 ### Future Chart Types
 - Line charts
-- Bar charts
-- Histograms
 - Box plots
+- Time series charts
 
 ## File Structure
 
@@ -78,10 +88,14 @@ src/
 ├── csv.js                    # CSV parsing with automatic type inference
 ├── svg.js                    # SVG generation coordinator (89 lines, down from 993)
 ├── charts/
-│   └── scatter.js            # Scatter plot implementation
+│   ├── scatter.js            # Scatter plot implementation
+│   └── histogram.js          # Histogram/bar chart implementation
 ├── embedded/                 # Browser-side code (embedded in generated SVGs)
-│   ├── chart-runtime.js      # Chart rendering, scaling, UI controls, filtering
-│   └── interactivity.js      # Event handling, legend interactions, public API
+│   ├── chart-runtime.js      # Generic chart framework, UI controls, filtering
+│   ├── interactivity.js      # Event handling, legend interactions, public API
+│   └── charts/               # Chart-specific embedded modules
+│       ├── scatter-chart.js  # Scatter plot rendering and controls
+│       └── histogram-chart.js # Histogram rendering and controls
 ├── generators/               # SVG element creation utilities
 │   └── svg-elements.js       # Axes, points, legend, CSS generation
 └── utils/
@@ -98,10 +112,11 @@ examples/                     # Generated SVG examples (tracked in git)
 
 ### Key Architectural Benefits
 - **Generator vs Embedded Separation**: Clear distinction between Node.js SVG creation code and browser-side embedded JavaScript
-- **Modular Components**: Each file has a single, focused responsibility  
-- **Reusable Utilities**: Shared functions avoid code duplication
+- **Chart Type Modularity**: Each chart type has its own module with specific rendering and controls
+- **Generic Chart Framework**: Shared infrastructure in chart-runtime.js supports all chart types
+- **Reusable Utilities**: Shared functions avoid code duplication across chart types
 - **Maintainable Size**: Main svg.js reduced from 993 to 89 lines
-- **Extensible Design**: Easy to add new chart types, interactive features, or output formats
+- **Extensible Design**: Easy to add new chart types by creating new chart modules
 
 ## Testing
 
@@ -110,8 +125,10 @@ The project includes comprehensive testing at multiple levels:
 ### Unit Tests
 - CSV parsing and type inference
 - Scatter chart scaling and point positioning  
+- Histogram bin calculation and data distribution
+- Numeric vs categorical histogram detection
 - SVG generation and structure
-- Edge cases like constant values and invalid data
+- Edge cases like constant values, empty data, and invalid data
 - Uses Node.js built-in test runner (no external dependencies)
 
 ### Integration Tests  
@@ -156,10 +173,12 @@ All workflows run on pushes to `main` and on pull requests.
 Generated SVG charts include built-in UI controls for real-time interaction:
 
 ### HTML-based Interactive Controls
+- **Chart Type Selector**: Switch between scatter plots and histograms in real-time
 - **Native HTML Implementation**: Uses HTML `<select>` and `<input>` elements embedded in SVG via `<foreignObject>`
-- **Real-time Field Switching**: Users can change X/Y axis fields using native dropdowns
-- **Smart Field Filtering**: Only numeric fields are available for axis selection
-- **Group Field Selection**: Includes all fields (numeric and string) with "None" option for grouping
+- **Dynamic Control Rendering**: UI adapts based on selected chart type
+- **Scatter Plot Controls**: X/Y axis dropdowns, grouping field selection
+- **Histogram Controls**: Field selection dropdown, bin count input for numeric data
+- **Smart Field Filtering**: Only numeric fields are available for scatter plot axes
 - **Data Filtering**: Add/remove multiple filters with various operators to explore data subsets
 - **Better UX**: Native keyboard navigation, accessibility, and familiar control behavior
 
@@ -260,10 +279,26 @@ updateChart({
 - **Consistent styling**: CSS classes for all visual elements
 
 ### Adding New Features
-- **New chart types**: Add to `src/charts/` directory
+- **New chart types**: 
+  1. Add server-side generator to `src/charts/`
+  2. Create embedded module in `src/embedded/charts/`
+  3. Update chart registry in `chart-runtime.js`
+  4. Add CLI options in `cli.js`
 - **New generators**: Add SVG element functions to `src/generators/`
 - **New embedded features**: Add browser functions to `src/embedded/`
 - **New utilities**: Add shared functions to `src/utils/`
+
+### Chart Type Implementation Pattern
+Each chart type follows a consistent pattern:
+
+**Server-side (Node.js)**:
+- Export generation function from `src/charts/[type].js`
+- Handle data processing and initial chart setup
+
+**Client-side (Embedded)**:
+- Create module in `src/embedded/charts/[type]-chart.js`
+- Export functions: `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
+- Include in chart registry with consistent interface
 
 ## Development Practices
 

@@ -8,6 +8,15 @@ export function generateHistogram(data, field, numBins = 10) {
     .map(row => row[field])
     .filter(v => v !== null && v !== undefined);
   
+  // Handle empty data
+  if (values.length === 0) {
+    return {
+      type: 'categorical',
+      bins: [],
+      maxCount: 0
+    };
+  }
+  
   // Separate numeric and string values
   const numericValues = values.filter(v => typeof v === 'number');
   const stringValues = values.filter(v => typeof v === 'string');
@@ -93,7 +102,7 @@ function generateCategoricalHistogram(values) {
     }))
     .sort((a, b) => b.count - a.count);
   
-  const maxCount = Math.max(...bins.map(b => b.count));
+  const maxCount = bins.length > 0 ? Math.max(...bins.map(b => b.count)) : 0;
   
   return {
     type: 'categorical',
