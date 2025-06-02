@@ -6,6 +6,7 @@ export function generateInteractiveScript() {
     console.log('SVG Chart loaded with', embeddedData.rows.length, 'data points');
     
     function initializeInteractivity() {
+      log_debug('Initializing interactivity');
       // Initialize visible groups
       visibleGroups.clear();
       const legendItems = document.querySelectorAll('.legend-item');
@@ -14,6 +15,7 @@ export function generateInteractiveScript() {
         visibleGroups.add(group);
       });
       
+      log_debug('Visible groups initialized:', Array.from(visibleGroups));
       setupEventListeners();
     }
     
@@ -77,6 +79,7 @@ export function generateInteractiveScript() {
     }
     
     function toggleGroup(group) {
+      log_debug('Toggling group visibility:', group);
       if (visibleGroups.has(group)) {
         visibleGroups.delete(group);
         hideGroup(group);
@@ -85,6 +88,7 @@ export function generateInteractiveScript() {
         showGroup(group);
       }
       updateLegendCheckbox(group, visibleGroups.has(group));
+      log_debug('Visible groups after toggle:', Array.from(visibleGroups));
     }
     
     function hideGroup(group) {
@@ -128,11 +132,13 @@ export function generateInteractiveScript() {
     
     // Public API for dynamic chart updates
     window.updateChart = function(newOptions) {
+      log_debug('updateChart called with:', newOptions);
       currentOptions = { ...currentOptions, ...newOptions };
       renderChart();
     };
     
     window.changeAxis = function(axis, field) {
+      log_debug('changeAxis called:', { axis, field });
       if (axis === 'x') {
         currentOptions.xField = field;
       } else if (axis === 'y') {

@@ -76,6 +76,12 @@ export function generateEmbeddedChartFunctions() {
     }
     
     function generateScatterChart(data, options) {
+      log_debug('generateScatterChart called with:', { 
+        dataRows: data.rows.length, 
+        options: options,
+        appliedFilters: appliedFilters
+      });
+      
       const { width, height, padding } = chartDimensions;
       const controlPanelWidth = 240; // Account for wider control panel
       const chartWidth = width - controlPanelWidth - padding - 20;
@@ -83,6 +89,12 @@ export function generateEmbeddedChartFunctions() {
       
       // Apply filters to data
       const filteredData = { ...data, rows: applyFilters(data.rows) };
+      
+      log_debug('Data filtering result:', {
+        originalRows: data.rows.length,
+        filteredRows: filteredData.rows.length,
+        filtersApplied: appliedFilters.length
+      });
       
       // Calculate scales using filtered data
       const xValues = filteredData.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
@@ -92,6 +104,15 @@ export function generateEmbeddedChartFunctions() {
       const xMax = Math.max(...xValues);
       const yMin = Math.min(...yValues);
       const yMax = Math.max(...yValues);
+      
+      log_debug('Scale calculation:', {
+        xField: options.xField,
+        yField: options.yField,
+        xValues: xValues.length,
+        yValues: yValues.length,
+        xRange: [xMin, xMax],
+        yRange: [yMin, yMax]
+      });
       
       // Handle case where all values are the same (range = 0)
       const xRange = xMax - xMin;
@@ -247,6 +268,7 @@ export function generateEmbeddedChartFunctions() {
     }
     
     function applyPendingFilters() {
+      log_debug('Applying filters:', pendingFilters);
       // Copy pending filters to applied filters
       appliedFilters = [...pendingFilters];
       renderChartContent();
@@ -621,6 +643,7 @@ export function generateRenderingFunctions() {
     }
 
     function renderChart() {
+      log_debug('renderChart called');
       // Render UI controls first
       renderUIControls();
       
@@ -629,6 +652,7 @@ export function generateRenderingFunctions() {
     }
     
     function renderChartContent() {
+      log_debug('renderChartContent called with options:', currentOptions);
       // Generate chart data
       currentChartData = generateScatterChart(embeddedData, currentOptions);
       

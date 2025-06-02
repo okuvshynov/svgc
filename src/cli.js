@@ -15,7 +15,8 @@ function parseArgs() {
     xField: null,
     yField: null,
     weightField: null,
-    groupField: null
+    groupField: null,
+    debug: false
   };
   
   let inputFile = null;
@@ -37,6 +38,8 @@ function parseArgs() {
       options.weightField = args[++i];
     } else if (arg === '-g' || arg === '--group-field') {
       options.groupField = args[++i];
+    } else if (arg === '--debug') {
+      options.debug = true;
     } else if (arg === '--help') {
       printHelp();
       process.exit(0);
@@ -68,6 +71,7 @@ Options:
   -y, --y-field <field>     Field to use for Y axis
   -s, --size-field <field>  Field to use for point sizes (optional)
   -g, --group-field <field> Field to use for grouping/colors (optional)
+  --debug                   Enable debug logging in generated SVG
   --help                    Show this help message
 
 Examples:

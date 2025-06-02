@@ -39,6 +39,13 @@ export function generateSVG(chartData, data, options) {
     let currentChartData = null;
     let visibleGroups = new Set();
     
+    // Debug logging function
+    function log_debug(...args) {
+      if (currentOptions.debug) {
+        console.log('[DEBUG]', ...args);
+      }
+    }
+    
     // Chart dimensions (account for left control panel)
     const chartDimensions = {
       width: ${width},
