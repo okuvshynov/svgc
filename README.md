@@ -132,6 +132,32 @@ Integration tests:
 - Verify core functionality and DOM structure
 - Validate that charts render properly in browsers
 
+## Project Structure
+
+The codebase is organized into focused, modular components:
+
+```
+src/
+├── cli.js                    # Command-line interface
+├── csv.js                    # CSV parsing and data processing  
+├── svg.js                    # Main SVG generation coordinator
+├── charts/
+│   └── scatter.js            # Scatter plot chart generator
+├── embedded/                 # Browser-side JavaScript (embedded in SVG)
+│   ├── chart-runtime.js      # Chart rendering functions
+│   └── interactivity.js      # Event handlers and interactive features
+├── generators/               # SVG element generation utilities
+│   └── svg-elements.js       # Axes, points, legend, CSS generation
+└── utils/
+    └── formatting.js         # Number formatting and tick calculation
+```
+
+**Key Benefits:**
+- **Separation of concerns**: Generator code (Node.js) vs embedded code (browser)
+- **Modularity**: Easy to add new chart types or features
+- **Maintainability**: Smaller, focused files instead of monolithic code
+- **Reusability**: Shared utilities across different components
+
 ## Contributing
 
 1. Fork the repository

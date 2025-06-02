@@ -22,8 +22,10 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 - **CLI Interface** (`src/cli.js`): Command-line argument parsing and main entry point
 - **CSV Parser** (`src/csv.js`): Reads and parses CSV data with type inference
 - **Chart Generators** (`src/charts/`): Modular chart rendering (scatter, line, bar, etc.)
-- **SVG Builder** (`src/svg.js`): Constructs complete SVG documents with embedded JS
-- **UI Generator** (`src/ui.js`): Creates interactive controls within the SVG
+- **SVG Coordinator** (`src/svg.js`): Main entry point for SVG generation, coordinates all modules
+- **Generator Utilities** (`src/generators/`): SVG element creation (axes, points, legend, CSS)
+- **Embedded Runtime** (`src/embedded/`): Browser-side JavaScript embedded in SVG files
+- **Shared Utilities** (`src/utils/`): Common functions used across modules
 
 ### Data Flow
 
@@ -67,13 +69,38 @@ The system now uses **embedded chart rendering** where:
 
 ## File Structure
 
-- `src/` - Core application code
-- `data/` - Sample CSV files for testing
-- `examples/` - Generated SVG examples (tracked in git)
-- `test/` - Unit tests using Node.js built-in test runner
-- `.github/workflows/` - CI/CD automation
-- `.gitignore` - Excludes temporary files, node_modules, generated test files
-- `.npmignore` - Excludes development files from npm package
+The codebase follows a modular architecture with clear separation of concerns:
+
+```
+src/
+├── cli.js                    # Command-line interface and main entry point
+├── csv.js                    # CSV parsing with automatic type inference
+├── svg.js                    # SVG generation coordinator (89 lines, down from 993)
+├── charts/
+│   └── scatter.js            # Scatter plot implementation
+├── embedded/                 # Browser-side code (embedded in generated SVGs)
+│   ├── chart-runtime.js      # Chart rendering, scaling, UI controls
+│   └── interactivity.js      # Event handling, legend interactions, public API
+├── generators/               # SVG element creation utilities
+│   └── svg-elements.js       # Axes, points, legend, CSS generation
+└── utils/
+    └── formatting.js         # Number formatting and tick calculation
+
+test/                         # Unit and integration tests
+├── *.test.js                 # Unit tests using Node.js built-in test runner
+└── integration.test.js       # Browser-based integration tests with Puppeteer
+
+data/                         # Sample CSV files for testing
+examples/                     # Generated SVG examples (tracked in git)
+.github/workflows/            # CI/CD automation (unit, integration, linting)
+```
+
+### Key Architectural Benefits
+- **Generator vs Embedded Separation**: Clear distinction between Node.js SVG creation code and browser-side embedded JavaScript
+- **Modular Components**: Each file has a single, focused responsibility  
+- **Reusable Utilities**: Shared functions avoid code duplication
+- **Maintainable Size**: Main svg.js reduced from 993 to 89 lines
+- **Extensible Design**: Easy to add new chart types, interactive features, or output formats
 
 ## Testing
 
@@ -188,14 +215,29 @@ updateChart({
 
 ## Implementation Notes
 
-- Use ES6 modules for better organization
-- Embedded JavaScript should be compatible with modern browsers
-- SVG coordinate system: origin at top-left, positive Y downward
-- Color schemes should be accessible and printer-friendly
-- All measurements in the SVG should be scalable based on specified dimensions
-- Chart rendering logic is embedded within SVG for dynamic updates
-- Axis ticks use smart intervals for professional appearance
-- Grid lines and tick marks enhance readability
+### Code Organization
+- **ES6 modules**: All components use modern import/export syntax
+- **Clear boundaries**: Generator code (Node.js) completely separated from embedded code (browser)
+- **Single responsibility**: Each module handles one specific concern
+- **Import structure**: Use relative imports within the src/ directory
+
+### Technical Requirements  
+- **Browser compatibility**: Embedded JavaScript should work with modern browsers
+- **SVG coordinate system**: Origin at top-left, positive Y downward
+- **Scalable design**: All measurements should be relative to specified dimensions
+- **Accessibility**: Color schemes should be accessible and printer-friendly
+- **Performance**: Chart rendering logic embedded within SVG for instant updates
+
+### Visual Standards
+- **Professional appearance**: Smart axis intervals (1, 2, 2.5, 5 × 10^k)
+- **Grid enhancement**: Subtle grid lines and tick marks for readability
+- **Consistent styling**: CSS classes for all visual elements
+
+### Adding New Features
+- **New chart types**: Add to `src/charts/` directory
+- **New generators**: Add SVG element functions to `src/generators/`
+- **New embedded features**: Add browser functions to `src/embedded/`
+- **New utilities**: Add shared functions to `src/utils/`
 
 ## Development Practices
 
