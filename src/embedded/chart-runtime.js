@@ -79,7 +79,7 @@ export function generateEmbeddedChartFunctions() {
       log_debug('generateScatterChart called with:', { 
         dataRows: data.rows.length, 
         options: options,
-        appliedFilters: appliedFilters
+        filters: currentOptions.filters
       });
       
       const { width, height, padding } = chartDimensions;
@@ -93,7 +93,7 @@ export function generateEmbeddedChartFunctions() {
       log_debug('Data filtering result:', {
         originalRows: data.rows.length,
         filteredRows: filteredData.rows.length,
-        filtersApplied: appliedFilters.length
+        filtersApplied: currentOptions.filters ? currentOptions.filters.length : 0
       });
       
       // Calculate scales using filtered data
@@ -205,16 +205,15 @@ export function generateEmbeddedChartFunctions() {
     }
     
     // Filter management
-    let pendingFilters = [];
-    let appliedFilters = [];
+    let pendingFilters = [...(currentOptions.filters || [])];
     
     function applyFilters(rows) {
-      if (appliedFilters.length === 0) {
+      if (!currentOptions.filters || currentOptions.filters.length === 0) {
         return rows;
       }
       
       return rows.filter(row => {
-        return appliedFilters.every(filter => evaluateFilter(row, filter));
+        return currentOptions.filters.every(filter => evaluateFilter(row, filter));
       });
     }
     
@@ -269,15 +268,15 @@ export function generateEmbeddedChartFunctions() {
     
     function applyPendingFilters() {
       log_debug('Applying filters:', pendingFilters);
-      // Copy pending filters to applied filters
-      appliedFilters = [...pendingFilters];
+      // Save pending filters to current options
+      currentOptions.filters = [...pendingFilters];
       renderChartContent();
       renderUIControls();
     }
     
     function clearAllFilters() {
       pendingFilters = [];
-      appliedFilters = [];
+      currentOptions.filters = [];
       renderChartContent();
       renderUIControls();
     }
@@ -365,6 +364,10 @@ export function generateRenderingFunctions() {
       
       // Filters section
       renderFiltersSection(controlsContainer, panelX + 10, panelY + 200, panelWidth - 20);
+      
+      // Save button at the bottom
+      const saveButton = createSaveButton(panelX + 10, chartDimensions.height - 60, panelWidth - 20);
+      controlsContainer.appendChild(saveButton);
     }
     
     function renderFiltersSection(container, x, y, width) {
@@ -401,7 +404,7 @@ export function generateRenderingFunctions() {
       }
       
       // Clear All button (if there are any filters)
-      if (pendingFilters.length > 0 || appliedFilters.length > 0) {
+      if (pendingFilters.length > 0 || (currentOptions.filters && currentOptions.filters.length > 0)) {
         const clearAllButton = createClearAllButton(x + 180, buttonY, 70);
         container.appendChild(clearAllButton);
       }
@@ -587,6 +590,117 @@ export function generateRenderingFunctions() {
       group.addEventListener('click', clearAllFilters);
       
       return group;
+    }
+    
+    function createSaveButton(x, y, width) {
+      const group = createSVGElement('g', { class: 'save-btn', style: 'cursor: pointer;' });
+      
+      // Background
+      const bg = createSVGElement('rect', {
+        x: x,
+        y: y,
+        width: width,
+        height: 30,
+        fill: '#673AB7',
+        stroke: '#512DA8',
+        'stroke-width': 1,
+        rx: 4
+      });
+      group.appendChild(bg);
+      
+      // Icon - simple floppy disk shape
+      const iconGroup = createSVGElement('g', {
+        transform: \`translate(\${x + 15}, \${y + 7})\`
+      });
+      
+      // Floppy disk body
+      iconGroup.appendChild(createSVGElement('rect', {
+        x: 0, y: 0, width: 16, height: 16,
+        fill: 'white', stroke: 'none'
+      }));
+      
+      // Floppy disk shutter
+      iconGroup.appendChild(createSVGElement('rect', {
+        x: 3, y: 0, width: 10, height: 6,
+        fill: '#673AB7', stroke: 'none'
+      }));
+      
+      // Floppy disk label area
+      iconGroup.appendChild(createSVGElement('rect', {
+        x: 2, y: 8, width: 12, height: 6,
+        fill: '#673AB7', stroke: 'none'
+      }));
+      
+      group.appendChild(iconGroup);
+      
+      // Text
+      const text = createSVGElement('text', {
+        x: x + width/2 + 5,
+        y: y + 19,
+        'text-anchor': 'middle',
+        style: 'font-family: Arial, sans-serif; font-size: 13px; font-weight: bold; fill: white; pointer-events: none;'
+      });
+      text.textContent = 'Save Current View';
+      group.appendChild(text);
+      
+      group.addEventListener('click', saveCurrentState);
+      
+      return group;
+    }
+    
+    function saveCurrentState() {
+      log_debug('Saving current state:', currentOptions);
+      
+      // Create a copy of the current SVG
+      const svgElement = document.documentElement.cloneNode(true);
+      
+      // Find the script element in the cloned SVG
+      const scriptElement = svgElement.querySelector('script');
+      if (scriptElement) {
+        // Get the current script content
+        let scriptContent = scriptElement.textContent;
+        
+        // Replace the initial state with current state
+        const stateRegex = /const initialState = [^;]+;/;
+        scriptContent = scriptContent.replace(
+          stateRegex,
+          \`const initialState = \${JSON.stringify(currentOptions)};\`
+        );
+        
+        scriptElement.textContent = scriptContent;
+      }
+      
+      // Serialize the modified SVG
+      const serializer = new XMLSerializer();
+      const svgString = serializer.serializeToString(svgElement);
+      
+      // Create a blob and download link
+      const blob = new Blob([svgString], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      
+      // Generate filename with current settings
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+      const filename = \`chart_\${currentOptions.xField}_vs_\${currentOptions.yField}_\${timestamp}.svg\`;
+      
+      // Create a download link using a different approach that works in SVG context
+      // We'll create a temporary anchor element in a way that works across browsers
+      const tempLink = document.createElementNS('http://www.w3.org/1999/xhtml', 'a');
+      tempLink.href = url;
+      tempLink.download = filename;
+      
+      // Create a click event
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: false
+      });
+      
+      tempLink.dispatchEvent(clickEvent);
+      
+      // Clean up
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      
+      log_debug('Chart saved as:', filename);
     }
     
     function createUIGroup(x, y, label, currentValue, options, onChange, width = 130) {
