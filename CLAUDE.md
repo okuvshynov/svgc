@@ -13,7 +13,7 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 - **Dynamic rendering**: Chart generation logic embedded in SVG for runtime interactivity
 - **Programmable API**: Exposed JavaScript functions enable live chart manipulation
 - **Professional visualization**: Clean axes, grid lines, and human-readable formatting
-- **Interactive UI**: Built-in controls for selecting axes, grouping, and chart options
+- **Interactive UI**: Built-in controls for selecting axes, grouping, filtering, and chart options
 
 ## Architecture
 
@@ -33,7 +33,8 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 2. CSV parser reads and processes data file
 3. SVG builder embeds data and chart generation functions as JavaScript
 4. Browser renders chart dynamically when SVG loads
-5. Embedded API enables real-time chart updates and interaction
+5. User interactions (axis changes, filtering, grouping) trigger real-time updates
+6. Embedded API enables programmatic chart manipulation and data exploration
 
 ### Dynamic Architecture
 
@@ -79,7 +80,7 @@ src/
 ├── charts/
 │   └── scatter.js            # Scatter plot implementation
 ├── embedded/                 # Browser-side code (embedded in generated SVGs)
-│   ├── chart-runtime.js      # Chart rendering, scaling, UI controls
+│   ├── chart-runtime.js      # Chart rendering, scaling, UI controls, filtering
 │   └── interactivity.js      # Event handling, legend interactions, public API
 ├── generators/               # SVG element creation utilities
 │   └── svg-elements.js       # Axes, points, legend, CSS generation
@@ -154,12 +155,13 @@ All workflows run on pushes to `main` and on pull requests.
 
 Generated SVG charts include built-in UI controls for real-time interaction:
 
-### HTML-based Dropdowns with foreignObject
-- **Native HTML Implementation**: Uses HTML `<select>` elements embedded in SVG via `<foreignObject>`
+### HTML-based Interactive Controls
+- **Native HTML Implementation**: Uses HTML `<select>` and `<input>` elements embedded in SVG via `<foreignObject>`
 - **Real-time Field Switching**: Users can change X/Y axis fields using native dropdowns
 - **Smart Field Filtering**: Only numeric fields are available for axis selection
 - **Group Field Selection**: Includes all fields (numeric and string) with "None" option for grouping
-- **Better UX**: Native keyboard navigation, accessibility, and familiar dropdown behavior
+- **Data Filtering**: Add/remove multiple filters with various operators to explore data subsets
+- **Better UX**: Native keyboard navigation, accessibility, and familiar control behavior
 
 ### Technical Implementation for HTML UI Elements
 When creating HTML elements within SVG using `foreignObject`:
@@ -195,6 +197,30 @@ foreignObject.appendChild(selectElement);
 - Set styles with `setAttribute('style', ...)` not `element.style.property`
 - Create all child elements (options, etc.) in XHTML namespace
 - Event listeners work normally once elements are properly created
+
+### Data Filtering System
+The charts include a comprehensive filtering system for data exploration:
+
+**Filter Interface:**
+- **Multiple Filters**: Add/remove multiple filter conditions with AND logic
+- **Field Selection**: Dropdown of all available fields in the dataset
+- **Operator Support**: `=`, `!=`, `>`, `<`, `>=`, `<=`, `contains`, `starts with`, `ends with`
+- **Type-aware**: Automatically handles numeric vs string comparisons
+- **Real-time Updates**: Chart re-renders immediately when filters change
+
+**Example Filters:**
+```
+model != "Q8_K_ZL"           # Exclude specific model
+n_depth > 1000               # Show only high depth values  
+avg_ts <= 50.0               # Performance threshold
+model contains "Q3"          # Models containing Q3
+```
+
+**Implementation Notes:**
+- Filtering logic runs entirely in embedded JavaScript (browser-side)
+- No server requests needed - completely self-contained
+- Filters are applied before chart scaling, so axes adjust to filtered data
+- Filter state maintained in `currentFilters` array with unique IDs
 
 ## Interactive API
 
