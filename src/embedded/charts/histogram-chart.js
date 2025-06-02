@@ -286,12 +286,41 @@ export function generateEmbeddedHistogramChart() {
     function renderHistogramControls(container, x, y, width) {
       let currentY = y;
       
+      log_debug('renderHistogramControls called', {
+        histogramField: currentOptions.histogramField,
+        binCount: currentOptions.binCount
+      });
+      
       // All fields for histogram
       const allFields = Object.keys(embeddedData.rows[0]);
       
+      // Initialize histogram field if not set
+      if (!currentOptions.histogramField) {
+        // Try to find a numeric field first
+        const numericFields = allFields.filter(field => {
+          return embeddedData.rows.some(row => typeof row[field] === 'number');
+        });
+        
+        // Use first numeric field if available, otherwise first field
+        currentOptions.histogramField = numericFields.length > 0 ? numericFields[0] : allFields[0];
+        
+        log_debug('Auto-selected histogram field', {
+          field: currentOptions.histogramField,
+          isNumeric: numericFields.includes(currentOptions.histogramField)
+        });
+        
+        // Auto-suggest bin count for numeric fields
+        const values = embeddedData.rows
+          .map(row => row[currentOptions.histogramField])
+          .filter(v => typeof v === 'number');
+        if (values.length > 0 && !currentOptions.binCount) {
+          currentOptions.binCount = suggestBinCount(values);
+        }
+      }
+      
       // Field selection dropdown
       const fieldGroup = createUIGroup(x, currentY, 'Field:', 
-        currentOptions.histogramField || allFields[0], allFields, (field) => {
+        currentOptions.histogramField, allFields, (field) => {
         currentOptions.histogramField = field;
         
         // Auto-suggest bin count for numeric fields
@@ -302,7 +331,7 @@ export function generateEmbeddedHistogramChart() {
           currentOptions.binCount = suggestBinCount(values);
         }
         
-        renderChartContent();
+        renderChart(); // Re-render to update bin count control visibility
       });
       container.appendChild(fieldGroup);
       currentY += 50;
@@ -311,13 +340,27 @@ export function generateEmbeddedHistogramChart() {
       const values = embeddedData.rows
         .map(row => row[currentOptions.histogramField])
         .filter(v => v !== null && v !== undefined);
-      const isNumeric = values.some(v => typeof v === 'number') && 
-                       !values.some(v => typeof v === 'string');
+      const numericValues = values.filter(v => typeof v === 'number');
+      const stringValues = values.filter(v => typeof v === 'string');
+      const isNumeric = numericValues.length > 0 && stringValues.length === 0;
+      
+      log_debug('Field type check', {
+        field: currentOptions.histogramField,
+        totalValues: values.length,
+        numericCount: numericValues.length,
+        stringCount: stringValues.length,
+        isNumeric: isNumeric
+      });
       
       if (isNumeric) {
+        // Initialize bin count if not set
+        if (!currentOptions.binCount) {
+          currentOptions.binCount = suggestBinCount(numericValues);
+        }
+        
         // Bin count input
         const binCountGroup = createBinCountInput(x, currentY, 'Bins:', 
-          currentOptions.binCount || 10, (count) => {
+          currentOptions.binCount, (count) => {
           currentOptions.binCount = parseInt(count);
           renderChartContent();
         });

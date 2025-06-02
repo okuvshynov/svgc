@@ -247,7 +247,7 @@ export function generateRenderingFunctions() {
       const chartTypeGroup = createUIGroup(panelX + 10, currentY, 'Chart Type:', 
         currentOptions.chartType || 'scatter', chartTypeOptions, (type) => {
         currentOptions.chartType = type;
-        renderChartContent();
+        renderChart(); // This will re-render both UI controls and chart content
       });
       controlsContainer.appendChild(chartTypeGroup);
       currentY += 50;
