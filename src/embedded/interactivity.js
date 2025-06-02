@@ -8,12 +8,27 @@ export function generateInteractiveScript() {
     function initializeInteractivity() {
       log_debug('Initializing interactivity');
       // Initialize visible groups
-      visibleGroups.clear();
-      const legendItems = document.querySelectorAll('.legend-item');
-      legendItems.forEach(item => {
-        const group = item.getAttribute('data-group');
-        visibleGroups.add(group);
-      });
+      if (currentOptions.visibleGroups === null) {
+        // null means all groups are visible (default state)
+        visibleGroups.clear();
+        const legendItems = document.querySelectorAll('.legend-item');
+        legendItems.forEach(item => {
+          const group = item.getAttribute('data-group');
+          visibleGroups.add(group);
+        });
+      } else {
+        // Use saved visible groups
+        visibleGroups = new Set(currentOptions.visibleGroups);
+        // Update UI to reflect saved state
+        const legendItems = document.querySelectorAll('.legend-item');
+        legendItems.forEach(item => {
+          const group = item.getAttribute('data-group');
+          if (!visibleGroups.has(group)) {
+            hideGroup(group);
+            updateLegendCheckbox(group, false);
+          }
+        });
+      }
       
       log_debug('Visible groups initialized:', Array.from(visibleGroups));
       setupEventListeners();
@@ -88,6 +103,10 @@ export function generateInteractiveScript() {
         showGroup(group);
       }
       updateLegendCheckbox(group, visibleGroups.has(group));
+      
+      // Save visible groups to current options
+      currentOptions.visibleGroups = Array.from(visibleGroups);
+      
       log_debug('Visible groups after toggle:', Array.from(visibleGroups));
     }
     

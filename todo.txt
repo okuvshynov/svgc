@@ -1,0 +1,6 @@
+1. group by multiple fields
+2. improve ui itself, smaller buttons, better layout, etc.
+3. sharing the changed chart
+4. check id gen - generate a page and embed multiple charts on it
+5. different chart types: boxplot
+6. comparison mode

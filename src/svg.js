@@ -33,11 +33,17 @@ export function generateSVG(chartData, data, options) {
   <script type="text/javascript"><![CDATA[
     // Embedded data and options
     const embeddedData = ${embeddedData};
-    let currentOptions = ${embeddedOptions};
+    
+    // Initialize chart state with defaults if not present
+    const initialState = ${embeddedOptions};
+    if (!initialState.filters) initialState.filters = [];
+    if (!initialState.visibleGroups) initialState.visibleGroups = null; // null means all visible
+    
+    let currentOptions = initialState;
     
     // Chart state
     let currentChartData = null;
-    let visibleGroups = new Set();
+    let visibleGroups = new Set(currentOptions.visibleGroups);
     
     // Debug logging function
     function log_debug(...args) {
