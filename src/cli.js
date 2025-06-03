@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { parseCSV, getNumericFields } from './csv.js';
-import { generateScatterChart } from './charts/scatter.js';
 import { generateSVG } from './svg.js';
 import { writeFileSync } from 'fs';
 import { basename } from 'path';
@@ -117,8 +116,6 @@ function main() {
     console.error(`Numeric fields: ${numericFields.join(', ')}`);
     
     // Handle different chart types
-    let chartData;
-    
     if (options.chartType === 'histogram') {
       // Auto-select field if not specified
       if (!options.histogramField) {
@@ -132,13 +129,6 @@ function main() {
       }
       
       console.error(`Generating histogram: ${options.histogramField}`);
-      // For server-side generation, we pass basic histogram data
-      // The actual histogram will be generated client-side
-      chartData = {
-        type: 'histogram',
-        field: options.histogramField,
-        binCount: options.binCount
-      };
     } else {
       // Default to scatter chart
       // Auto-select fields if not specified
@@ -158,13 +148,11 @@ function main() {
         process.exit(1);
       }
       
-      // Generate chart data
       console.error(`Generating scatter plot: ${options.xField} vs ${options.yField}`);
-      chartData = generateScatterChart(data, options);
     }
     
     // Generate SVG
-    const svg = generateSVG(chartData, data, options);
+    const svg = generateSVG(data, options);
     
     // Output
     if (options.output) {

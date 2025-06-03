@@ -1,9 +1,8 @@
-import { generateCSS, generateAxes, generatePoints, generateLegend, generateUIControls } from './generators/svg-elements.js';
-import { generateTicks, formatNumber } from './utils/formatting.js';
+import { generateCSS } from './generators/svg-elements.js';
 import { generateEmbeddedChartFunctions, generateRenderingFunctions } from './embedded/chart-runtime.js';
 import { generateInteractiveScript } from './embedded/interactivity.js';
 
-export function generateSVG(chartData, data, options) {
+export function generateSVG(data, options) {
   const { width, height } = options;
   
   // Embed the original data and chart functions as JavaScript
@@ -70,5 +69,3 @@ export function generateSVG(chartData, data, options) {
   return svg;
 }
 
-// Export utility functions for testing
-export { generateTicks, formatNumber };
