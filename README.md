@@ -1,10 +1,11 @@
 # SVGC - SVG Chart Generator
 
-Generate interactive, self-contained SVG charts from CSV data.
+Generate interactive, self-contained SVG charts from CSV data. All chart rendering happens in the browser using embedded JavaScript.
 
 ## Features
 
 - **Self-contained**: No external dependencies, charts work offline
+- **Pure Browser Rendering**: All chart generation happens client-side via embedded JavaScript
 - **Multiple Chart Types**: Scatter plots and histograms with more types coming
 - **Dynamic & Interactive**: Live chart type switching, axis selection, hover highlighting
 - **Data Filtering**: Interactive filtering with multiple operators and real-time updates
@@ -12,6 +13,7 @@ Generate interactive, self-contained SVG charts from CSV data.
 - **Professional**: Clean tick marks, grid lines, and human-readable axis labels
 - **Extensible**: Modular architecture makes adding new chart types simple
 - **Command-line**: Simple CLI interface with sensible defaults
+- **Minimal Server Footprint**: Node.js only creates the SVG container (71 lines)
 
 ## Quick Start
 
@@ -144,10 +146,11 @@ node src/cli.js -x n_depth -y avg_ts -g model data/qwen30b3a_q3.csv > chart.svg
 
 ### Testing
 
-The project includes two types of tests:
+The project includes comprehensive testing:
 
-- **Unit Tests**: Test individual functions and modules using Node.js built-in test runner
+- **Unit Tests**: Test CSV parsing and embedded chart functions using a mock browser environment
 - **Integration Tests**: Test generated SVG files in a real browser using Puppeteer
+- **Embedded Testing**: Direct testing of browser-side JavaScript via `embedded-test-helper.js`
 
 **For users** (runtime only):
 ```bash
@@ -166,35 +169,43 @@ Integration tests:
 - Verify core functionality and DOM structure
 - Validate that charts render properly in browsers
 
-## Project Structure
+## Architecture
 
-The codebase is organized into focused, modular components:
+This project uses a pure embedded rendering approach:
+
+- **Node.js Role**: Only creates the SVG container and embeds data/JavaScript
+- **Browser Role**: All chart rendering happens client-side
+- **Zero Server-side Chart Logic**: No chart generation on the server
+- **Self-contained Output**: Generated SVGs work offline without any dependencies
+
+## Project Structure
 
 ```
 src/
-├── cli.js                    # Command-line interface and argument parsing
-├── csv.js                    # CSV parsing and data processing  
-├── svg.js                    # Main SVG generation coordinator
-├── charts/
-│   ├── scatter.js            # Scatter plot chart generator
-│   └── histogram.js          # Histogram/bar chart generator
-├── embedded/                 # Browser-side JavaScript (embedded in SVG)
-│   ├── chart-runtime.js      # Generic chart rendering framework
-│   ├── interactivity.js      # Event handlers and interactive features
-│   └── charts/               # Chart-specific embedded modules
-│       ├── scatter-chart.js  # Scatter plot rendering and controls
-│       └── histogram-chart.js # Histogram rendering and controls
-├── generators/               # SVG element generation utilities
-│   └── svg-elements.js       # Axes, points, legend, CSS generation
-└── utils/
-    └── formatting.js         # Number formatting and tick calculation
+├── cli.js                            # Command-line interface
+├── csv.js                            # CSV parsing with type inference
+├── svg.js                            # Minimal SVG coordinator (71 lines)
+├── embedded/                         # All chart rendering code (browser-side)
+│   ├── chart-runtime.js              # Chart framework and registry
+│   ├── interactivity.js              # Event handling and public API
+│   └── charts/                       # Chart implementations
+│       ├── scatter-chart.js          # Loads scatter chart code
+│       ├── scatter-chart-embedded.js # Scatter plot implementation
+│       ├── histogram-chart.js        # Loads histogram code
+│       └── histogram-chart-embedded.js # Histogram implementation
+└── generators/                       # Minimal server utilities
+    └── svg-elements.js               # CSS generation only
+
+test/
+├── embedded-test-helper.js           # Mock browser environment
+└── *.test.js                         # Unit and integration tests
 ```
 
 **Key Benefits:**
-- **Separation of concerns**: Generator code (Node.js) vs embedded code (browser)
-- **Modularity**: Easy to add new chart types or features
-- **Maintainability**: Smaller, focused files instead of monolithic code
-- **Reusability**: Shared utilities across different components
+- **Pure Client-side Rendering**: All charts generated in the browser
+- **Testable Embedded Code**: Chart logic in separate files, not strings
+- **Minimal Server Footprint**: Node.js code is minimal and focused
+- **Easy Extension**: Add new charts by creating embedded modules only
 
 ## Contributing
 

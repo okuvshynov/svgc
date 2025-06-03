@@ -21,28 +21,27 @@ SVGC (SVG Chart Generator) creates interactive, self-contained SVG files with em
 
 - **CLI Interface** (`src/cli.js`): Command-line argument parsing and main entry point
 - **CSV Parser** (`src/csv.js`): Reads and parses CSV data with type inference
-- **Chart Generators** (`src/charts/`): Modular chart rendering (scatter, line, bar, etc.)
-- **SVG Coordinator** (`src/svg.js`): Main entry point for SVG generation, coordinates all modules
-- **Generator Utilities** (`src/generators/`): SVG element creation (axes, points, legend, CSS)
-- **Embedded Runtime** (`src/embedded/`): Browser-side JavaScript embedded in SVG files
-- **Shared Utilities** (`src/utils/`): Common functions used across modules
+- **SVG Coordinator** (`src/svg.js`): Minimal coordinator that embeds data and JavaScript (71 lines)
+- **Embedded Runtime** (`src/embedded/`): All chart rendering logic runs browser-side
+- **Generator Utilities** (`src/generators/`): CSS generation only
 
 ### Data Flow
 
 1. CLI parses command-line arguments (`-w`, `-h`, input file)
 2. CSV parser reads and processes data file
-3. SVG builder embeds data and chart generation functions as JavaScript
-4. Browser renders chart dynamically when SVG loads
+3. SVG builder creates minimal SVG structure with embedded data and JavaScript
+4. Browser executes embedded JavaScript to render chart dynamically
 5. User interactions (axis changes, filtering, grouping) trigger real-time updates
-6. Embedded API enables programmatic chart manipulation and data exploration
+6. Public API enables programmatic chart manipulation
 
-### Dynamic Architecture
+### Pure Embedded Architecture
 
-The system now uses **embedded chart rendering** where:
-- Chart generation functions live inside the SVG's JavaScript
-- Data is embedded as JSON within the SVG
-- Charts render dynamically when the SVG loads
-- Public API allows live chart updates without regeneration
+The system uses **100% embedded rendering**:
+- **No server-side chart generation**: Node.js only creates SVG container
+- **All rendering browser-side**: Chart generation happens entirely in the browser
+- **Data embedded as JSON**: CSV data converted to JSON and embedded in SVG
+- **Self-contained JavaScript**: All chart logic included in the generated SVG
+- **Zero external dependencies**: No external JS libraries or resources needed
 
 ## Development Commands
 
@@ -84,39 +83,38 @@ The codebase follows a modular architecture with clear separation of concerns:
 
 ```
 src/
-├── cli.js                    # Command-line interface and main entry point
-├── csv.js                    # CSV parsing with automatic type inference
-├── svg.js                    # SVG generation coordinator (89 lines, down from 993)
-├── charts/
-│   ├── scatter.js            # Scatter plot implementation
-│   └── histogram.js          # Histogram/bar chart implementation
-├── embedded/                 # Browser-side code (embedded in generated SVGs)
-│   ├── chart-runtime.js      # Generic chart framework, UI controls, filtering
-│   ├── interactivity.js      # Event handling, legend interactions, public API
-│   └── charts/               # Chart-specific embedded modules
-│       ├── scatter-chart.js  # Scatter plot rendering and controls
-│       └── histogram-chart.js # Histogram rendering and controls
-├── generators/               # SVG element creation utilities
-│   └── svg-elements.js       # Axes, points, legend, CSS generation
-└── utils/
-    └── formatting.js         # Number formatting and tick calculation
+├── cli.js                            # Command-line interface and main entry point
+├── csv.js                            # CSV parsing with automatic type inference
+├── svg.js                            # Minimal SVG coordinator (71 lines)
+├── embedded/                         # All chart rendering code (browser-side)
+│   ├── chart-runtime.js              # Chart framework, registry, and utilities
+│   ├── interactivity.js              # Event handling, public API, filters
+│   └── charts/                       # Chart-specific modules
+│       ├── scatter-chart.js          # Loads scatter-chart-embedded.js
+│       ├── scatter-chart-embedded.js # Scatter plot implementation
+│       ├── histogram-chart.js        # Loads histogram-chart-embedded.js
+│       └── histogram-chart-embedded.js # Histogram implementation
+└── generators/                       # Minimal server-side utilities
+    └── svg-elements.js               # CSS generation only
 
-test/                         # Unit and integration tests
-├── *.test.js                 # Unit tests using Node.js built-in test runner
-└── integration.test.js       # Browser-based integration tests with Puppeteer
+test/                                 # Unit and integration tests
+├── embedded-test-helper.js           # Mock browser environment for testing
+├── *.test.js                         # Unit tests using Node.js built-in test runner
+└── integration.test.js               # Browser-based integration tests with Puppeteer
 
-data/                         # Sample CSV files for testing
-examples/                     # Generated SVG examples (tracked in git)
-.github/workflows/            # CI/CD automation (unit, integration, linting)
+data/                                 # Sample CSV files for testing
+examples/                             # Generated SVG examples (tracked in git)
+.github/workflows/                    # CI/CD automation (unit, integration, linting)
 ```
 
 ### Key Architectural Benefits
-- **Generator vs Embedded Separation**: Clear distinction between Node.js SVG creation code and browser-side embedded JavaScript
-- **Chart Type Modularity**: Each chart type has its own module with specific rendering and controls
+- **Pure Embedded Rendering**: All chart generation happens in the browser, not server-side
+- **Minimal Node.js Footprint**: Server only creates SVG container (71 lines in svg.js)
+- **Testable Embedded Code**: Chart logic in separate .js files, not string templates
+- **Chart Type Modularity**: Each chart type has its own embedded implementation
 - **Generic Chart Framework**: Shared infrastructure in chart-runtime.js supports all chart types
-- **Reusable Utilities**: Shared functions avoid code duplication across chart types
-- **Maintainable Size**: Main svg.js reduced from 993 to 89 lines
-- **Extensible Design**: Easy to add new chart types by creating new chart modules
+- **Zero Server-side Chart Logic**: Complete separation of concerns
+- **Extensible Design**: Add new chart types by creating embedded modules only
 
 ## Testing
 
@@ -124,12 +122,12 @@ The project includes comprehensive testing at multiple levels:
 
 ### Unit Tests
 - CSV parsing and type inference
-- Scatter chart scaling and point positioning  
-- Histogram bin calculation and data distribution
-- Numeric vs categorical histogram detection
-- SVG generation and structure
+- Embedded scatter chart functions (using mock browser environment)
+- Embedded histogram functions (numeric and categorical)
+- SVG structure generation
 - Edge cases like constant values, empty data, and invalid data
 - Uses Node.js built-in test runner (no external dependencies)
+- Tests embedded JavaScript directly via `embedded-test-helper.js`
 
 ### Integration Tests  
 - Browser-based testing using Puppeteer
@@ -280,25 +278,23 @@ updateChart({
 
 ### Adding New Features
 - **New chart types**: 
-  1. Add server-side generator to `src/charts/`
-  2. Create embedded module in `src/embedded/charts/`
+  1. Create `[type]-chart-embedded.js` in `src/embedded/charts/` with chart logic
+  2. Create `[type]-chart.js` to load the embedded code
   3. Update chart registry in `chart-runtime.js`
   4. Add CLI options in `cli.js`
-- **New generators**: Add SVG element functions to `src/generators/`
 - **New embedded features**: Add browser functions to `src/embedded/`
-- **New utilities**: Add shared functions to `src/utils/`
+- **CSS updates**: Modify `src/generators/svg-elements.js`
 
 ### Chart Type Implementation Pattern
 Each chart type follows a consistent pattern:
 
-**Server-side (Node.js)**:
-- Export generation function from `src/charts/[type].js`
-- Handle data processing and initial chart setup
-
-**Client-side (Embedded)**:
-- Create module in `src/embedded/charts/[type]-chart.js`
+**Embedded Implementation** (`src/embedded/charts/`):
+- `[type]-chart.js`: Loads the embedded code from file system
+- `[type]-chart-embedded.js`: Contains actual chart implementation
 - Export functions: `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
-- Include in chart registry with consistent interface
+- Register in chart-runtime.js with consistent interface
+
+**No server-side chart logic**: All chart generation happens in embedded JavaScript
 
 ## Development Practices
 

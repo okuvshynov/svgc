@@ -1,8 +1,17 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert';
-import { generateScatterChart } from '../src/charts/scatter.js';
+import { loadEmbeddedFunction, createEmbeddedEnvironment } from './embedded-test-helper.js';
 
-describe('Scatter Chart Generator', () => {
+describe('Scatter Chart Generator (Embedded)', () => {
+  let generateScatterChart;
+  let environment;
+  
+  // Load the embedded scatter chart function before tests
+  test.before(() => {
+    generateScatterChart = loadEmbeddedFunction('scatter-chart-embedded.js', 'generateScatterChart');
+    environment = createEmbeddedEnvironment();
+  });
+  
   const sampleData = {
     headers: ['x', 'y', 'size', 'group'],
     rows: [
@@ -14,14 +23,20 @@ describe('Scatter Chart Generator', () => {
   };
   
   test('should generate basic scatter chart', () => {
+    // Set up environment
+    Object.assign(environment, {
+      embeddedData: sampleData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(sampleData, options);
+    // Call with bound environment
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, sampleData, options);
     
     assert.strictEqual(result.points.length, 4);
     assert.ok(result.xScale);
@@ -39,14 +54,18 @@ describe('Scatter Chart Generator', () => {
       ]
     };
     
+    Object.assign(environment, {
+      embeddedData: constantData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(constantData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, constantData, options);
     
     // Should not have NaN values
     result.points.forEach(point => {
@@ -60,15 +79,19 @@ describe('Scatter Chart Generator', () => {
   });
   
   test('should handle grouping', () => {
+    Object.assign(environment, {
+      embeddedData: sampleData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y',
       groupField: 'group'
     };
     
-    const result = generateScatterChart(sampleData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, sampleData, options);
     
     assert.deepStrictEqual(result.groups, ['A', 'B']);
     assert.strictEqual(Object.keys(result.groupColorMap).length, 2);
@@ -77,15 +100,19 @@ describe('Scatter Chart Generator', () => {
   });
   
   test('should handle weight field for point sizes', () => {
+    Object.assign(environment, {
+      embeddedData: sampleData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y',
       weightField: 'size'
     };
     
-    const result = generateScatterChart(sampleData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, sampleData, options);
     
     // Points should have different radii based on weight
     const radii = result.points.map(p => p.radius);
@@ -94,14 +121,18 @@ describe('Scatter Chart Generator', () => {
   });
   
   test('should calculate proper scales', () => {
+    Object.assign(environment, {
+      embeddedData: sampleData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(sampleData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, sampleData, options);
     
     // X values: 1, 2, 3, 4 -> min: 1, max: 4
     assert.ok(result.xScale.min < 1, 'X scale min should include padding');
@@ -113,21 +144,35 @@ describe('Scatter Chart Generator', () => {
   });
   
   test('should position points correctly within chart bounds', () => {
+    Object.assign(environment, {
+      embeddedData: sampleData,
+      currentOptions: { filters: [] },
+      chartDimensions: {
+        width: 800,
+        height: 600,
+        padding: 60
+      }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
-      padding: 60,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(sampleData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, sampleData, options);
+    
+    const controlPanelWidth = 240;
+    const leftBound = controlPanelWidth + environment.chartDimensions.padding;
+    const rightBound = environment.chartDimensions.width - 20; // Account for the 20px margin in chart width calculation
+    const topBound = environment.chartDimensions.padding;
+    const bottomBound = environment.chartDimensions.height - environment.chartDimensions.padding;
     
     result.points.forEach(point => {
-      assert.ok(point.x >= options.padding, 'Point should be within left bound');
-      assert.ok(point.x <= options.width - options.padding, 'Point should be within right bound');
-      assert.ok(point.y >= options.padding, 'Point should be within top bound');
-      assert.ok(point.y <= options.height - options.padding, 'Point should be within bottom bound');
+      assert.ok(point.x >= leftBound, `Point x ${point.x} should be >= left bound ${leftBound}`);
+      assert.ok(point.x <= rightBound, `Point x ${point.x} should be <= right bound ${rightBound}`);
+      assert.ok(point.y >= topBound, `Point y ${point.y} should be >= top bound ${topBound}`);
+      assert.ok(point.y <= bottomBound, `Point y ${point.y} should be <= bottom bound ${bottomBound}`);
     });
   });
   
@@ -142,14 +187,18 @@ describe('Scatter Chart Generator', () => {
       ]
     };
     
+    Object.assign(environment, {
+      embeddedData: mixedData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(mixedData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, mixedData, options);
     
     // Should only include points with valid numeric values
     assert.strictEqual(result.points.length, 2);
@@ -161,14 +210,18 @@ describe('Scatter Chart Generator', () => {
       rows: [{ x: 5, y: 10 }]
     };
     
+    Object.assign(environment, {
+      embeddedData: singlePointData,
+      currentOptions: { filters: [] }
+    });
+    
     const options = {
-      width: 800,
-      height: 600,
       xField: 'x',
       yField: 'y'
     };
     
-    const result = generateScatterChart(singlePointData, options);
+    const boundFunction = generateScatterChart.bind(environment);
+    const result = boundFunction.call(environment, singlePointData, options);
     
     assert.strictEqual(result.points.length, 1);
     assert.ok(!isNaN(result.points[0].x));
