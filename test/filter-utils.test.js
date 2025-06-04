@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { applyFilters, evaluateFilter, createNewFilter } from '../src/embedded/filter-utils-impl.js';
+import { applyFilters, evaluateFilter, createNewFilter } from '../src/embedded/filter-utils.js';
 
 test('Filter Utilities', async (t) => {
   const sampleData = [

@@ -17,7 +17,7 @@ const __dirname = dirname(__filename);
 export function loadEmbedded(moduleName, subdirectory = '') {
   const embeddedDir = join(__dirname, 'embedded');
   const basePath = subdirectory ? join(embeddedDir, subdirectory) : embeddedDir;
-  const filePath = join(basePath, `${moduleName}-impl.js`);
+  const filePath = join(basePath, `${moduleName}.js`);
   
   try {
     const fileContent = readFileSync(filePath, 'utf8');

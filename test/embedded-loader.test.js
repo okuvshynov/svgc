@@ -142,7 +142,7 @@ test('Embedded Loader', async (t) => {
         loadEmbeddedChart('missing-chart');
         assert.fail('Should have thrown an error');
       } catch (error) {
-        assert.strictEqual(error.message.includes('missing-chart-impl.js'), true);
+        assert.strictEqual(error.message.includes('missing-chart.js'), true);
       }
     });
   });

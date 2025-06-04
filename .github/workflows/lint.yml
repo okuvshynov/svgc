@@ -86,7 +86,7 @@ jobs:
         find test -name "*.test.js" -type f | sort
         
         echo -e "\n=== Embedded modules ==="
-        find src/embedded -name "*-impl.js" -type f | sort
+        find src/embedded -name "*.js" -type f | sort
         
     - name: Check package.json validity
       run: |
@@ -100,20 +100,3 @@ jobs:
         fi
         
         echo "Package configuration is valid"
-        
-    - name: Verify embedded module naming convention
-      run: |
-        # Check that all embedded implementation files follow the -impl.js convention
-        echo "Checking embedded module naming convention..."
-        
-        # Find files that should follow the convention
-        find src/embedded -name "*.js" -type f ! -name "*-impl.js" ! -name "embedded-loader.js" ! -name "interactivity.js" | while read -r file; do
-          # Skip test files
-          if [[ "$file" == *".test.js" ]]; then
-            continue
-          fi
-          
-          echo "Warning: $file doesn't follow -impl.js naming convention"
-        done
-        
-        echo "Embedded module naming check completed"

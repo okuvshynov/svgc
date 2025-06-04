@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { generateTicks, formatNumber, generateColors, createSVGElement } from '../src/embedded/chart-utils-impl.js';
+import { generateTicks, formatNumber, generateColors, createSVGElement } from '../src/embedded/chart-utils.js';
 
 test('Chart Utilities', async (t) => {
   // Setup minimal mock for createSVGElement tests
