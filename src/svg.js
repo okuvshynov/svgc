@@ -1,5 +1,5 @@
 import { generateCSS } from './generators/svg-elements.js';
-import { generateEmbeddedChartFunctions, generateRenderingFunctions } from './embedded/chart-runtime.js';
+import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded/embedded-loader.js';
 import { generateInteractiveScript } from './embedded/interactivity.js';
 
 export function generateSVG(data, options) {
@@ -58,9 +58,38 @@ export function generateSVG(data, options) {
       padding: 60  // Standard padding, control panel handled separately
     };
     
-    ${generateEmbeddedChartFunctions()}
+    // Chart generation functions embedded in SVG
     
-    ${generateRenderingFunctions()}
+    ${loadEmbeddedUtil('chart-utils')}
+    
+    ${loadEmbeddedUtil('filter-utils')}
+    
+    ${loadEmbeddedUtil('ui-components')}
+    
+    ${loadEmbeddedUtil('filters')}
+    
+    ${loadEmbeddedUtil('render-ui')}
+    
+    // Filter management
+    let pendingFilters = [...(currentOptions.filters || [])];
+    
+    ${loadEmbeddedChart('scatter-chart')}
+    
+    ${loadEmbeddedChart('histogram-chart')}
+    
+    // Chart registry - defined after the chart functions are available
+    const chartTypes = {
+      scatter: {
+        generate: generateScatterChart,
+        render: renderScatterChart,
+        renderControls: renderScatterControls
+      },
+      histogram: {
+        generate: generateHistogram,
+        render: renderHistogramChart,
+        renderControls: renderHistogramControls
+      }
+    };
     
     ${generateInteractiveScript()}
   ]]></script>

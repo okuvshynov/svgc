@@ -25,32 +25,68 @@ jobs:
       
     - name: Check for syntax errors
       run: |
-        # Check JavaScript syntax
-        node -c src/cli.js
-        node -c src/csv.js
-        node -c src/svg.js
-        node -c src/embedded/charts/scatter-chart-impl.js
-        node -c src/embedded/charts/histogram-chart-impl.js
-        node -c src/embedded/embedded-loader.js
-        node -c src/embedded/chart-runtime.js
+        # Find and check all JavaScript files
+        echo "Checking JavaScript syntax..."
+        find src -name "*.js" -type f | while read -r file; do
+          echo "Checking: $file"
+          node -c "$file"
+        done
+        
+        # Also check test files
+        find test -name "*.js" -type f | while read -r file; do
+          echo "Checking: $file"
+          node -c "$file"
+        done
         
         echo "All JavaScript files have valid syntax"
         
-    - name: Verify file structure
+    - name: Verify core file structure
       run: |
-        # Check that all required files exist
-        test -f package.json
-        test -f src/cli.js
-        test -f src/csv.js
-        test -f src/svg.js
-        test -f src/embedded/charts/scatter-chart-impl.js
-        test -f src/embedded/charts/histogram-chart-impl.js
-        test -f src/embedded/embedded-loader.js
-        test -f src/embedded/chart-runtime.js
-        test -f data/qwen30b3a_q3.csv
-        test -d test/
+        # Check that core files and directories exist
+        echo "Verifying core file structure..."
+        
+        # Core files
+        for file in package.json README.md LICENSE; do
+          if [ ! -f "$file" ]; then
+            echo "Missing required file: $file"
+            exit 1
+          fi
+        done
+        
+        # Core directories
+        for dir in src src/embedded src/generators data test examples; do
+          if [ ! -d "$dir" ]; then
+            echo "Missing required directory: $dir"
+            exit 1
+          fi
+        done
+        
+        # Essential source files
+        for file in src/cli.js src/csv.js src/svg.js; do
+          if [ ! -f "$file" ]; then
+            echo "Missing essential file: $file"
+            exit 1
+          fi
+        done
+        
+        # Check for at least one CSV file in data/
+        if ! ls data/*.csv >/dev/null 2>&1; then
+          echo "No CSV files found in data/ directory"
+          exit 1
+        fi
         
         echo "File structure check passed"
+        
+    - name: List JavaScript modules
+      run: |
+        echo "=== Source files ==="
+        find src -name "*.js" -type f | sort
+        
+        echo -e "\n=== Test files ==="
+        find test -name "*.test.js" -type f | sort
+        
+        echo -e "\n=== Embedded modules ==="
+        find src/embedded -name "*-impl.js" -type f | sort
         
     - name: Check package.json validity
       run: |
@@ -58,6 +94,26 @@ jobs:
         npm pkg fix --dry-run
         
         # Check that main script is executable
-        test -x src/cli.js
+        if [ ! -x "src/cli.js" ]; then
+          echo "src/cli.js is not executable"
+          exit 1
+        fi
         
         echo "Package configuration is valid"
+        
+    - name: Verify embedded module naming convention
+      run: |
+        # Check that all embedded implementation files follow the -impl.js convention
+        echo "Checking embedded module naming convention..."
+        
+        # Find files that should follow the convention
+        find src/embedded -name "*.js" -type f ! -name "*-impl.js" ! -name "embedded-loader.js" ! -name "interactivity.js" | while read -r file; do
+          # Skip test files
+          if [[ "$file" == *".test.js" ]]; then
+            continue
+          fi
+          
+          echo "Warning: $file doesn't follow -impl.js naming convention"
+        done
+        
+        echo "Embedded module naming check completed"
