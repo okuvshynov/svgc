@@ -1,6 +1,5 @@
 import { generateCSS } from './generators/svg-elements.js';
 import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded/embedded-loader.js';
-import { generateInteractiveScript } from './embedded/interactivity.js';
 
 export function generateSVG(data, options) {
   const { width, height } = options;
@@ -91,7 +90,10 @@ export function generateSVG(data, options) {
       }
     };
     
-    ${generateInteractiveScript()}
+    ${loadEmbeddedUtil('interactivity')}
+    
+    // Initialize the chart
+    initializeChart();
   ]]></script>
 </svg>`;
 
