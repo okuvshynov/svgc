@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { loadEmbedded, loadEmbeddedChart, loadEmbeddedUtil } from '../src/embedded/embedded-loader.js';
+import { loadEmbedded, loadEmbeddedChart, loadEmbeddedUtil } from '../src/embedded-loader.js';
 
 test('Embedded Loader', async (t) => {
   await t.test('loadEmbedded', async (t) => {
@@ -142,7 +142,7 @@ test('Embedded Loader', async (t) => {
         loadEmbeddedChart('missing-chart');
         assert.fail('Should have thrown an error');
       } catch (error) {
-        assert.strictEqual(error.message.includes('missing-chart-impl.js'), true);
+        assert.strictEqual(error.message.includes('missing-chart.js'), true);
       }
     });
   });

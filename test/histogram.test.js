@@ -10,9 +10,9 @@ describe('Histogram Chart Generator (Embedded)', () => {
   
   // Load the embedded histogram functions before tests
   test.before(() => {
-    generateHistogram = loadEmbeddedFunction('histogram-chart-impl.js', 'generateHistogram');
-    generateNumericHistogram = loadEmbeddedFunction('histogram-chart-impl.js', 'generateNumericHistogram');
-    generateCategoricalHistogram = loadEmbeddedFunction('histogram-chart-impl.js', 'generateCategoricalHistogram');
+    generateHistogram = loadEmbeddedFunction('histogram-chart.js', 'generateHistogram');
+    generateNumericHistogram = loadEmbeddedFunction('histogram-chart.js', 'generateNumericHistogram');
+    generateCategoricalHistogram = loadEmbeddedFunction('histogram-chart.js', 'generateCategoricalHistogram');
     environment = createEmbeddedEnvironment();
   });
   

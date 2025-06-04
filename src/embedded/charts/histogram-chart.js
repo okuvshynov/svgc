@@ -347,7 +347,7 @@ function renderHistogramControls(container, x, y, width) {
   renderFiltersSection(container, x, currentY, width);
   
   // Save button at the bottom
-  const saveButton = createSaveButton(x, chartDimensions.height - 60, width);
+  const saveButton = createSaveButton(x, chartDimensions.height - 60, width, saveCurrentState);
   container.appendChild(saveButton);
 }
 
