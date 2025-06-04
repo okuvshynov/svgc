@@ -9,7 +9,7 @@ import {
   createClearAllButton,
   createSaveButton,
   createUIGroup
-} from '../src/embedded/ui-components.js';
+} from '../src/embedded/ui-components-impl.js';
 
 test('UI Components', async (t) => {
   // Setup minimal mock for DOM

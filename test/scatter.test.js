@@ -8,7 +8,7 @@ describe('Scatter Chart Generator (Embedded)', () => {
   
   // Load the embedded scatter chart function before tests
   test.before(() => {
-    generateScatterChart = loadEmbeddedFunction('scatter-chart-embedded.js', 'generateScatterChart');
+    generateScatterChart = loadEmbeddedFunction('scatter-chart-impl.js', 'generateScatterChart');
     environment = createEmbeddedEnvironment();
   });
   

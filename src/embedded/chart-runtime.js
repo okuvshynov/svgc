@@ -1,21 +1,17 @@
 // This file contains JavaScript code that gets embedded into SVG files
 // and runs in the browser to provide interactivity
 
-import { generateEmbeddedScatterChart } from './charts/scatter-chart.js';
-import { generateEmbeddedHistogramChart } from './charts/histogram-chart.js';
-import { generateEmbeddedChartUtils } from './chart-utils-embedded.js';
-import { generateEmbeddedFilterUtils } from './filter-utils-embedded.js';
-import { generateEmbeddedUIComponents } from './ui-components-embedded.js';
+import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded-loader.js';
 
 export function generateEmbeddedChartFunctions() {
   return `
     // Chart generation functions embedded in SVG
     
-    ${generateEmbeddedChartUtils()}
+    ${loadEmbeddedUtil('chart-utils')}
     
-    ${generateEmbeddedFilterUtils()}
+    ${loadEmbeddedUtil('filter-utils')}
     
-    ${generateEmbeddedUIComponents()}
+    ${loadEmbeddedUtil('ui-components')}
     
     // Filter management
     let pendingFilters = [...(currentOptions.filters || [])];
@@ -79,9 +75,9 @@ export function generateEmbeddedChartFunctions() {
       renderUIControls();
     }
     
-    ${generateEmbeddedScatterChart()}
+    ${loadEmbeddedChart('scatter-chart')}
     
-    ${generateEmbeddedHistogramChart()}
+    ${loadEmbeddedChart('histogram-chart')}
     
     // Chart registry - defined after the chart functions are available
     const chartTypes = {

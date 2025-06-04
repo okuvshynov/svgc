@@ -1,6 +1,6 @@
 // UI component functions for creating interactive controls
 
-import { createSVGElement } from './chart-utils.js';
+import { createSVGElement } from './chart-utils-impl.js';
 
 export function createValueInput(x, y, width, currentValue, onChange) {
   const foreignObject = createSVGElement('foreignObject', {
