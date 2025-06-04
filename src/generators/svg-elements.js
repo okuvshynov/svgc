@@ -1,5 +1,4 @@
 // SVG element generation utilities for building chart components
-import { generateTicks, formatNumber } from '../utils/formatting.js';
 
 export function generateCSS() {
   return `

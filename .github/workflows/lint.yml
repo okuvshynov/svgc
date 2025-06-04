@@ -29,7 +29,10 @@ jobs:
         node -c src/cli.js
         node -c src/csv.js
         node -c src/svg.js
-        node -c src/charts/scatter.js
+        node -c src/embedded/charts/scatter-chart-impl.js
+        node -c src/embedded/charts/histogram-chart-impl.js
+        node -c src/embedded/embedded-loader.js
+        node -c src/embedded/chart-runtime.js
         
         echo "All JavaScript files have valid syntax"
         
@@ -40,7 +43,10 @@ jobs:
         test -f src/cli.js
         test -f src/csv.js
         test -f src/svg.js
-        test -f src/charts/scatter.js
+        test -f src/embedded/charts/scatter-chart-impl.js
+        test -f src/embedded/charts/histogram-chart-impl.js
+        test -f src/embedded/embedded-loader.js
+        test -f src/embedded/chart-runtime.js
         test -f data/qwen30b3a_q3.csv
         test -d test/
         

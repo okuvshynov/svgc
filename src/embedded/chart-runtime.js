@@ -1,105 +1,17 @@
 // This file contains JavaScript code that gets embedded into SVG files
 // and runs in the browser to provide interactivity
 
-import { generateEmbeddedScatterChart } from './charts/scatter-chart.js';
-import { generateEmbeddedHistogramChart } from './charts/histogram-chart.js';
+import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded-loader.js';
 
 export function generateEmbeddedChartFunctions() {
   return `
     // Chart generation functions embedded in SVG
     
-    function generateTicks(min, max, targetCount) {
-      if (min === max) {
-        return [min];
-      }
-      
-      const range = max - min;
-      const roughStep = range / (targetCount - 1);
-      
-      // Find nice step size (1, 2, 2.5, 5) * 10^k
-      const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-      const normalized = roughStep / magnitude;
-      
-      let niceStep;
-      if (normalized <= 1) {
-        niceStep = 1 * magnitude;
-      } else if (normalized <= 2) {
-        niceStep = 2 * magnitude;
-      } else if (normalized <= 2.5) {
-        niceStep = 2.5 * magnitude;
-      } else if (normalized <= 5) {
-        niceStep = 5 * magnitude;
-      } else {
-        niceStep = 10 * magnitude;
-      }
-      
-      const niceMin = Math.floor(min / niceStep) * niceStep;
-      const niceMax = Math.ceil(max / niceStep) * niceStep;
-      
-      const ticks = [];
-      for (let tick = niceMin; tick <= niceMax + niceStep * 0.001; tick += niceStep) {
-        const roundedTick = Math.round(tick / niceStep) * niceStep;
-        ticks.push(roundedTick);
-      }
-      
-      return ticks;
-    }
+    ${loadEmbeddedUtil('chart-utils')}
     
-    function formatNumber(num) {
-      if (num === 0) return '0';
-      
-      const absNum = Math.abs(num);
-      
-      // Use scientific notation for very large or very small numbers
-      if (absNum >= 1e6 || (absNum < 1e-3 && absNum > 0)) {
-        const exponent = Math.floor(Math.log10(absNum));
-        const mantissa = num / Math.pow(10, exponent);
-        
-        // Format mantissa to avoid unnecessary decimals
-        const formattedMantissa = mantissa % 1 === 0 ? 
-          mantissa.toString() : 
-          mantissa.toFixed(1);
-        
-        return \`\${formattedMantissa}×10^\${exponent}\`;
-      } else if (absNum >= 1) {
-        if (num % 1 === 0) {
-          return num.toString();
-        } else if (num % 0.1 === 0) {
-          return num.toFixed(1);
-        } else {
-          return num.toFixed(2);
-        }
-      } else {
-        if (num % 0.01 === 0) {
-          return num.toFixed(2);
-        } else if (num % 0.001 === 0) {
-          return num.toFixed(3);
-        } else {
-          return num.toFixed(4);
-        }
-      }
-    }
+    ${loadEmbeddedUtil('filter-utils')}
     
-    
-    function generateColors(count) {
-      const colors = [
-        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-      ];
-      
-      if (count <= colors.length) {
-        return colors.slice(0, count);
-      }
-      
-      const result = [...colors];
-      for (let i = colors.length; i < count; i++) {
-        const hue = (i * 137.508) % 360;
-        result.push(\`hsl(\${hue}, 70%, 50%)\`);
-      }
-      
-      return result;
-    }
-    
+    ${loadEmbeddedUtil('ui-components')}
     
     // Filter management
     let pendingFilters = [...(currentOptions.filters || [])];
@@ -114,38 +26,9 @@ export function generateEmbeddedChartFunctions() {
       });
     }
     
-    function evaluateFilter(row, filter) {
-      const value = row[filter.field];
-      const filterValue = filter.value;
-      
-      // Convert filter value to appropriate type
-      let typedFilterValue = filterValue;
-      if (typeof value === 'number' && !isNaN(Number(filterValue))) {
-        typedFilterValue = Number(filterValue);
-      }
-      
-      switch (filter.operator) {
-        case '=': return value == typedFilterValue;
-        case '!=': return value != typedFilterValue;
-        case '>': return value > typedFilterValue;
-        case '<': return value < typedFilterValue;
-        case '>=': return value >= typedFilterValue;
-        case '<=': return value <= typedFilterValue;
-        case 'contains': return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
-        case 'starts_with': return String(value).toLowerCase().startsWith(String(filterValue).toLowerCase());
-        case 'ends_with': return String(value).toLowerCase().endsWith(String(filterValue).toLowerCase());
-        default: return true;
-      }
-    }
-    
     function addFilter() {
       const allFields = Object.keys(embeddedData.rows[0]);
-      const newFilter = {
-        id: Date.now(),
-        field: allFields[0],
-        operator: '=',
-        value: ''
-      };
+      const newFilter = createNewFilter(allFields);
       pendingFilters.push(newFilter);
       renderUIControls();
     }
@@ -192,18 +75,9 @@ export function generateEmbeddedChartFunctions() {
       renderUIControls();
     }
     
+    ${loadEmbeddedChart('scatter-chart')}
     
-    function createSVGElement(tag, attributes = {}) {
-      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      for (const [key, value] of Object.entries(attributes)) {
-        element.setAttribute(key, value);
-      }
-      return element;
-    }
-    
-    ${generateEmbeddedScatterChart()}
-    
-    ${generateEmbeddedHistogramChart()}
+    ${loadEmbeddedChart('histogram-chart')}
     
     // Chart registry - defined after the chart functions are available
     const chartTypes = {
@@ -302,18 +176,18 @@ export function generateRenderingFunctions() {
       let buttonY = currentY + 5;
       
       // Add Filter button
-      const addFilterButton = createAddFilterButton(x, buttonY, 80);
+      const addFilterButton = createAddFilterButton(x, buttonY, 80, addFilter);
       container.appendChild(addFilterButton);
       
       // Apply Filters button (if there are pending filters)
       if (pendingFilters.length > 0) {
-        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90);
+        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90, applyPendingFilters);
         container.appendChild(applyButton);
       }
       
       // Clear All button (if there are any filters)
       if (pendingFilters.length > 0 || (currentOptions.filters && currentOptions.filters.length > 0)) {
-        const clearAllButton = createClearAllButton(x + 180, buttonY, 70);
+        const clearAllButton = createClearAllButton(x + 180, buttonY, 70, clearAllFilters);
         container.appendChild(clearAllButton);
       }
     }
@@ -344,214 +218,8 @@ export function generateRenderingFunctions() {
       group.appendChild(valueInput);
       
       // Remove button (15px width)
-      const removeButton = createRemoveButton(x + 195, y, filter.id);
+      const removeButton = createRemoveButton(x + 195, y, filter.id, removeFilter);
       group.appendChild(removeButton);
-      
-      return group;
-    }
-    
-    function createValueInput(x, y, width, currentValue, onChange) {
-      const foreignObject = createSVGElement('foreignObject', {
-        x: x,
-        y: y,
-        width: width,
-        height: 22
-      });
-      
-      const input = document.createElementNS('http://www.w3.org/1999/xhtml', 'input');
-      input.setAttribute('type', 'text');
-      input.setAttribute('value', currentValue);
-      input.setAttribute('style', 
-        \`width: \${width-4}px; height: 18px; font-family: Arial, sans-serif; font-size: 10px; \` +
-        'border: 1px solid #ccc; border-radius: 3px; padding: 1px;'
-      );
-      
-      input.addEventListener('input', (e) => {
-        onChange(e.target.value);
-      });
-      
-      foreignObject.appendChild(input);
-      return foreignObject;
-    }
-    
-    function createRemoveButton(x, y, filterId) {
-      const group = createSVGElement('g', { class: 'remove-filter-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y + 2,
-        width: 16,
-        height: 16,
-        fill: '#ff6b6b',
-        stroke: '#ff5252',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // X symbol
-      const xText = createSVGElement('text', {
-        x: x + 8,
-        y: y + 13,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      xText.textContent = '×';
-      group.appendChild(xText);
-      
-      group.addEventListener('click', () => {
-        removeFilter(filterId);
-      });
-      
-      return group;
-    }
-    
-    function createAddFilterButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'add-filter-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#4CAF50',
-        stroke: '#45a049',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = '+ Add';
-      group.appendChild(text);
-      
-      group.addEventListener('click', addFilter);
-      
-      return group;
-    }
-    
-    function createApplyFiltersButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'apply-filters-btn', style: 'cursor: pointer;' });
-      
-      // Background - always active blue
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#2196F3',
-        stroke: '#1976D2',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Apply Filters';
-      group.appendChild(text);
-      
-      group.addEventListener('click', applyPendingFilters);
-      
-      return group;
-    }
-    
-    function createClearAllButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'clear-all-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#f44336',
-        stroke: '#d32f2f',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Clear All';
-      group.appendChild(text);
-      
-      group.addEventListener('click', clearAllFilters);
-      
-      return group;
-    }
-    
-    function createSaveButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'save-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 30,
-        fill: '#673AB7',
-        stroke: '#512DA8',
-        'stroke-width': 1,
-        rx: 4
-      });
-      group.appendChild(bg);
-      
-      // Icon - simple floppy disk shape
-      const iconGroup = createSVGElement('g', {
-        transform: \`translate(\${x + 15}, \${y + 7})\`
-      });
-      
-      // Floppy disk body
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 0, y: 0, width: 16, height: 16,
-        fill: 'white', stroke: 'none'
-      }));
-      
-      // Floppy disk shutter
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 3, y: 0, width: 10, height: 6,
-        fill: '#673AB7', stroke: 'none'
-      }));
-      
-      // Floppy disk label area
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 2, y: 8, width: 12, height: 6,
-        fill: '#673AB7', stroke: 'none'
-      }));
-      
-      group.appendChild(iconGroup);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2 + 5,
-        y: y + 19,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 13px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Save Current View';
-      group.appendChild(text);
-      
-      group.addEventListener('click', saveCurrentState);
       
       return group;
     }
@@ -609,59 +277,6 @@ export function generateRenderingFunctions() {
       setTimeout(() => URL.revokeObjectURL(url), 100);
       
       log_debug('Chart saved as:', filename);
-    }
-    
-    function createUIGroup(x, y, label, currentValue, options, onChange, width = 130) {
-      const group = createSVGElement('g');
-      
-      // Label (only if provided)
-      if (label) {
-        const labelText = createSVGElement('text', {
-          x: x,
-          y: y - 5,
-          class: 'ui-label'
-        });
-        labelText.textContent = label;
-        group.appendChild(labelText);
-      }
-      
-      // Create foreignObject for HTML select
-      const foreignObject = createSVGElement('foreignObject', {
-        x: x,
-        y: y,
-        width: width,
-        height: 22
-      });
-      
-      // Create HTML select element in XHTML namespace
-      const selectElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'select');
-      
-      // Set style attribute as string since we're in XML context
-      selectElement.setAttribute('style', 
-        \`width: \${width}px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; \` +
-        'border: 1px solid #ccc; border-radius: 3px; background: white; padding: 2px; outline: none;'
-      );
-      
-      // Add options to select
-      options.forEach(option => {
-        const optionElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'option');
-        optionElement.setAttribute('value', option);
-        optionElement.textContent = option;
-        if (option === currentValue) {
-          optionElement.setAttribute('selected', 'selected');
-        }
-        selectElement.appendChild(optionElement);
-      });
-      
-      // Add event listener
-      selectElement.addEventListener('change', (e) => {
-        onChange(e.target.value);
-      });
-      
-      foreignObject.appendChild(selectElement);
-      
-      group.appendChild(foreignObject);
-      return group;
     }
 
     function renderChart() {
