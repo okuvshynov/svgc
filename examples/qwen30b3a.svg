@@ -85,98 +85,151 @@
     
     // Chart generation functions embedded in SVG
     
-    function generateTicks(min, max, targetCount) {
-      if (min === max) {
-        return [min];
-      }
-      
-      const range = max - min;
-      const roughStep = range / (targetCount - 1);
-      
-      // Find nice step size (1, 2, 2.5, 5) * 10^k
-      const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
-      const normalized = roughStep / magnitude;
-      
-      let niceStep;
-      if (normalized <= 1) {
-        niceStep = 1 * magnitude;
-      } else if (normalized <= 2) {
-        niceStep = 2 * magnitude;
-      } else if (normalized <= 2.5) {
-        niceStep = 2.5 * magnitude;
-      } else if (normalized <= 5) {
-        niceStep = 5 * magnitude;
-      } else {
-        niceStep = 10 * magnitude;
-      }
-      
-      const niceMin = Math.floor(min / niceStep) * niceStep;
-      const niceMax = Math.ceil(max / niceStep) * niceStep;
-      
-      const ticks = [];
-      for (let tick = niceMin; tick <= niceMax + niceStep * 0.001; tick += niceStep) {
-        const roundedTick = Math.round(tick / niceStep) * niceStep;
-        ticks.push(roundedTick);
-      }
-      
-      return ticks;
+    // Utility functions for chart generation
+
+function generateTicks(min, max, targetCount) {
+  if (min === max) {
+    return [min];
+  }
+  
+  const range = max - min;
+  const roughStep = range / (targetCount - 1);
+  
+  // Find nice step size (1, 2, 2.5, 5) * 10^k
+  const magnitude = Math.pow(10, Math.floor(Math.log10(roughStep)));
+  const normalized = roughStep / magnitude;
+  
+  let niceStep;
+  if (normalized <= 1) {
+    niceStep = 1 * magnitude;
+  } else if (normalized <= 2) {
+    niceStep = 2 * magnitude;
+  } else if (normalized <= 2.5) {
+    niceStep = 2.5 * magnitude;
+  } else if (normalized <= 5) {
+    niceStep = 5 * magnitude;
+  } else {
+    niceStep = 10 * magnitude;
+  }
+  
+  const niceMin = Math.floor(min / niceStep) * niceStep;
+  const niceMax = Math.ceil(max / niceStep) * niceStep;
+  
+  const ticks = [];
+  for (let tick = niceMin; tick <= niceMax + niceStep * 0.001; tick += niceStep) {
+    const roundedTick = Math.round(tick / niceStep) * niceStep;
+    ticks.push(roundedTick);
+  }
+  
+  return ticks;
+}
+
+function formatNumber(num) {
+  if (num === 0) return '0';
+  
+  const absNum = Math.abs(num);
+  
+  // Use scientific notation for very large or very small numbers
+  if (absNum >= 1e6 || (absNum < 1e-3 && absNum > 0)) {
+    const exponent = Math.floor(Math.log10(absNum));
+    const mantissa = num / Math.pow(10, exponent);
+    
+    // Format mantissa to avoid unnecessary decimals
+    const formattedMantissa = mantissa % 1 === 0 ? 
+      mantissa.toString() : 
+      mantissa.toFixed(1);
+    
+    return `${formattedMantissa}×10^${exponent}`;
+  } else if (absNum >= 1) {
+    if (num % 1 === 0) {
+      return num.toString();
+    } else if (num % 0.1 === 0) {
+      return num.toFixed(1);
+    } else {
+      return num.toFixed(2);
     }
-    
-    function formatNumber(num) {
-      if (num === 0) return '0';
-      
-      const absNum = Math.abs(num);
-      
-      // Use scientific notation for very large or very small numbers
-      if (absNum >= 1e6 || (absNum < 1e-3 && absNum > 0)) {
-        const exponent = Math.floor(Math.log10(absNum));
-        const mantissa = num / Math.pow(10, exponent);
-        
-        // Format mantissa to avoid unnecessary decimals
-        const formattedMantissa = mantissa % 1 === 0 ? 
-          mantissa.toString() : 
-          mantissa.toFixed(1);
-        
-        return `${formattedMantissa}×10^${exponent}`;
-      } else if (absNum >= 1) {
-        if (num % 1 === 0) {
-          return num.toString();
-        } else if (num % 0.1 === 0) {
-          return num.toFixed(1);
-        } else {
-          return num.toFixed(2);
-        }
-      } else {
-        if (num % 0.01 === 0) {
-          return num.toFixed(2);
-        } else if (num % 0.001 === 0) {
-          return num.toFixed(3);
-        } else {
-          return num.toFixed(4);
-        }
-      }
+  } else {
+    if (num % 0.01 === 0) {
+      return num.toFixed(2);
+    } else if (num % 0.001 === 0) {
+      return num.toFixed(3);
+    } else {
+      return num.toFixed(4);
     }
+  }
+}
+
+function generateColors(count) {
+  const colors = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
+  ];
+  
+  if (count <= colors.length) {
+    return colors.slice(0, count);
+  }
+  
+  const result = [...colors];
+  for (let i = colors.length; i < count; i++) {
+    const hue = (i * 137.508) % 360;
+    result.push(`hsl(${hue}, 70%, 50%)`);
+  }
+  
+  return result;
+}
+
+function createSVGElement(tag, attributes = {}) {
+  const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [key, value] of Object.entries(attributes)) {
+    element.setAttribute(key, value);
+  }
+  return element;
+}
     
-    
-    function generateColors(count) {
-      const colors = [
-        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-        '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf'
-      ];
-      
-      if (count <= colors.length) {
-        return colors.slice(0, count);
-      }
-      
-      const result = [...colors];
-      for (let i = colors.length; i < count; i++) {
-        const hue = (i * 137.508) % 360;
-        result.push(`hsl(${hue}, 70%, 50%)`);
-      }
-      
-      return result;
-    }
-    
+    // Filter management functions for chart filtering
+
+function applyFilters(rows, filters) {
+  if (!filters || filters.length === 0) {
+    return rows;
+  }
+  
+  return rows.filter(row => {
+    return filters.every(filter => evaluateFilter(row, filter));
+  });
+}
+
+function evaluateFilter(row, filter) {
+  const value = row[filter.field];
+  const filterValue = filter.value;
+  
+  // Convert filter value to appropriate type
+  let typedFilterValue = filterValue;
+  if (typeof value === 'number' && !isNaN(Number(filterValue))) {
+    typedFilterValue = Number(filterValue);
+  }
+  
+  switch (filter.operator) {
+    case '=': return value == typedFilterValue;
+    case '!=': return value != typedFilterValue;
+    case '>': return value > typedFilterValue;
+    case '<': return value < typedFilterValue;
+    case '>=': return value >= typedFilterValue;
+    case '<=': return value <= typedFilterValue;
+    case 'contains': return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
+    case 'starts_with': return String(value).toLowerCase().startsWith(String(filterValue).toLowerCase());
+    case 'ends_with': return String(value).toLowerCase().endsWith(String(filterValue).toLowerCase());
+    default: return true;
+  }
+}
+
+function createNewFilter(fields) {
+  return {
+    id: Date.now(),
+    field: fields[0],
+    operator: '=',
+    value: ''
+  };
+}
     
     // Filter management
     let pendingFilters = [...(currentOptions.filters || [])];
@@ -191,38 +244,9 @@
       });
     }
     
-    function evaluateFilter(row, filter) {
-      const value = row[filter.field];
-      const filterValue = filter.value;
-      
-      // Convert filter value to appropriate type
-      let typedFilterValue = filterValue;
-      if (typeof value === 'number' && !isNaN(Number(filterValue))) {
-        typedFilterValue = Number(filterValue);
-      }
-      
-      switch (filter.operator) {
-        case '=': return value == typedFilterValue;
-        case '!=': return value != typedFilterValue;
-        case '>': return value > typedFilterValue;
-        case '<': return value < typedFilterValue;
-        case '>=': return value >= typedFilterValue;
-        case '<=': return value <= typedFilterValue;
-        case 'contains': return String(value).toLowerCase().includes(String(filterValue).toLowerCase());
-        case 'starts_with': return String(value).toLowerCase().startsWith(String(filterValue).toLowerCase());
-        case 'ends_with': return String(value).toLowerCase().endsWith(String(filterValue).toLowerCase());
-        default: return true;
-      }
-    }
-    
     function addFilter() {
       const allFields = Object.keys(embeddedData.rows[0]);
-      const newFilter = {
-        id: Date.now(),
-        field: allFields[0],
-        operator: '=',
-        value: ''
-      };
+      const newFilter = createNewFilter(allFields);
       pendingFilters.push(newFilter);
       renderUIControls();
     }
@@ -269,871 +293,770 @@
       renderUIControls();
     }
     
-    
-    function createSVGElement(tag, attributes = {}) {
-      const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-      for (const [key, value] of Object.entries(attributes)) {
-        element.setAttribute(key, value);
-      }
-      return element;
-    }
-    
-    
     // Scatter chart implementation
-    
-    function generateScatterChart(data, options) {
-      log_debug('generateScatterChart called with:', { 
-        dataRows: data.rows.length, 
-        options: options,
-        filters: currentOptions.filters
-      });
-      
-      const { width, height, padding } = chartDimensions;
-      const controlPanelWidth = 240;
-      const chartWidth = width - controlPanelWidth - padding - 20;
-      const chartHeight = height - 2 * padding;
-      
-      // Apply filters to data
-      const filteredData = { ...data, rows: applyFilters(data.rows) };
-      
-      log_debug('Data filtering result:', {
-        originalRows: data.rows.length,
-        filteredRows: filteredData.rows.length,
-        filtersApplied: currentOptions.filters ? currentOptions.filters.length : 0
-      });
-      
-      // Calculate scales using filtered data
-      const xValues = filteredData.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
-      const yValues = filteredData.rows.map(row => row[options.yField]).filter(v => typeof v === 'number');
-      
-      const xMin = Math.min(...xValues);
-      const xMax = Math.max(...xValues);
-      const yMin = Math.min(...yValues);
-      const yMax = Math.max(...yValues);
-      
-      log_debug('Scale calculation:', {
-        xField: options.xField,
-        yField: options.yField,
-        xValues: xValues.length,
-        yValues: yValues.length,
-        xRange: [xMin, xMax],
-        yRange: [yMin, yMax]
-      });
-      
-      // Handle case where all values are the same (range = 0)
-      const xRange = xMax - xMin;
-      const yRange = yMax - yMin;
-      const xPadding = xRange > 0 ? xRange * 0.05 : Math.abs(xMin) * 0.1 || 1;
-      const yPadding = yRange > 0 ? yRange * 0.05 : Math.abs(yMin) * 0.1 || 1;
-      
-      const xScale = {
-        min: xMin - xPadding,
-        max: xMax + xPadding,
-        range: Math.max(xRange + 2 * xPadding, 2 * xPadding)
-      };
-      
-      const yScale = {
-        min: yMin - yPadding,
-        max: yMax + yPadding,
-        range: Math.max(yRange + 2 * yPadding, 2 * yPadding)
-      };
-      
-      // Get unique groups for coloring using filtered data
-      const groups = options.groupField ? 
-        [...new Set(filteredData.rows.map(row => row[options.groupField]))] : 
-        ['default'];
-      
-      const colors = generateColors(groups.length);
-      const groupColorMap = {};
-      groups.forEach((group, index) => {
-        groupColorMap[group] = colors[index];
-      });
-      
-      // Generate chart elements using filtered data
-      const points = filteredData.rows.map((row, index) => {
-        const x = row[options.xField];
-        const y = row[options.yField];
-        
-        if (typeof x !== 'number' || typeof y !== 'number') {
-          return null;
-        }
-        
-        const svgX = controlPanelWidth + padding + ((x - xScale.min) / xScale.range) * chartWidth;
-        const svgY = padding + chartHeight - ((y - yScale.min) / yScale.range) * chartHeight;
-        
-        const group = options.groupField ? row[options.groupField] : 'default';
-        const weight = options.weightField ? row[options.weightField] : 1;
-        const radius = Math.max(2, Math.min(10, 3 + Math.sqrt(weight) * 2));
-        
-        return {
-          x: svgX,
-          y: svgY,
-          radius,
-          color: groupColorMap[group],
-          group,
-          data: row,
-          index
-        };
-      }).filter(p => p !== null);
-      
-      return {
-        type: 'scatter',
-        points,
-        xScale,
-        yScale,
-        groupColorMap,
-        groups,
-        chartBounds: {
-          left: controlPanelWidth + padding,
-          top: padding,
-          width: chartWidth,
-          height: chartHeight
-        }
-      };
-    }
-    
-    function renderScatterChart(container, chartData, options) {
-      const { xField, yField } = options;
-      
-      // Render axes
-      renderScatterAxes(container, chartData, xField, yField);
-      
-      // Render points
-      renderScatterPoints(container, chartData);
-      
-      // Render legend if needed
-      if (options.groupField && chartData.groups.length > 1) {
-        renderScatterLegend(container, chartData, options.groupField);
-      }
-    }
-    
-    function renderScatterAxes(container, chartData, xField, yField) {
-      const { chartBounds, xScale, yScale } = chartData;
-      
-      // Main axes
-      container.appendChild(createSVGElement('line', {
-        x1: chartBounds.left,
-        y1: chartBounds.top + chartBounds.height,
-        x2: chartBounds.left + chartBounds.width,
-        y2: chartBounds.top + chartBounds.height,
-        class: 'axis-line'
-      }));
-      
-      container.appendChild(createSVGElement('line', {
-        x1: chartBounds.left,
-        y1: chartBounds.top,
-        x2: chartBounds.left,
-        y2: chartBounds.top + chartBounds.height,
-        class: 'axis-line'
-      }));
-      
-      // Generate ticks
-      const xTicks = generateTicks(xScale.min, xScale.max, 5).filter(tick => tick >= xScale.min && tick <= xScale.max);
-      const yTicks = generateTicks(yScale.min, yScale.max, 5).filter(tick => tick >= yScale.min && tick <= yScale.max);
-      
-      // Grid lines and tick marks
-      xTicks.forEach(tick => {
-        const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
-        
-        // Grid line
-        if (Math.abs(x - chartBounds.left) > 1) {
-          container.appendChild(createSVGElement('line', {
-            x1: x, y1: chartBounds.top,
-            x2: x, y2: chartBounds.top + chartBounds.height,
-            class: 'grid-line'
-          }));
-        }
-        
-        // Tick mark
-        container.appendChild(createSVGElement('line', {
-          x1: x, y1: chartBounds.top + chartBounds.height,
-          x2: x, y2: chartBounds.top + chartBounds.height + 5,
-          class: 'axis-tick'
-        }));
-        
-        // Label
-        const text = createSVGElement('text', {
-          x: x,
-          y: chartBounds.top + chartBounds.height + 18,
-          'text-anchor': 'middle',
-          class: 'axis-text'
-        });
-        text.textContent = formatNumber(tick);
-        container.appendChild(text);
-      });
-      
-      yTicks.forEach(tick => {
-        const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
-        
-        // Grid line
-        if (Math.abs(y - (chartBounds.top + chartBounds.height)) > 1) {
-          container.appendChild(createSVGElement('line', {
-            x1: chartBounds.left, y1: y,
-            x2: chartBounds.left + chartBounds.width, y2: y,
-            class: 'grid-line'
-          }));
-        }
-        
-        // Tick mark
-        container.appendChild(createSVGElement('line', {
-          x1: chartBounds.left - 5, y1: y,
-          x2: chartBounds.left, y2: y,
-          class: 'axis-tick'
-        }));
-        
-        // Label
-        const text = createSVGElement('text', {
-          x: chartBounds.left - 10,
-          y: y + 4,
-          'text-anchor': 'end',
-          class: 'axis-text'
-        });
-        text.textContent = formatNumber(tick);
-        container.appendChild(text);
-      });
-      
-      // Axis titles
-      const xTitle = createSVGElement('text', {
-        x: chartBounds.left + chartBounds.width/2,
-        y: chartBounds.top + chartBounds.height + 45,
-        'text-anchor': 'middle',
-        class: 'axis-text',
-        style: 'font-weight: bold;'
-      });
-      xTitle.textContent = xField;
-      container.appendChild(xTitle);
-      
-      const yTitle = createSVGElement('text', {
-        x: chartBounds.left - 60,
-        y: chartBounds.top + chartBounds.height/2,
-        'text-anchor': 'middle',
-        class: 'axis-text',
-        style: 'font-weight: bold;',
-        transform: `rotate(-90, ${chartBounds.left - 60}, ${chartBounds.top + chartBounds.height/2})`
-      });
-      yTitle.textContent = yField;
-      container.appendChild(yTitle);
-    }
-    
-    function renderScatterPoints(container, chartData) {
-      chartData.points.forEach(point => {
-        const circle = createSVGElement('circle', {
-          cx: point.x,
-          cy: point.y,
-          r: point.radius,
-          fill: point.color,
-          class: 'chart-point',
-          'data-group': point.group,
-          'data-index': point.index
-        });
-        
-        const title = createSVGElement('title');
-        title.textContent = JSON.stringify(point.data);
-        circle.appendChild(title);
-        
-        container.appendChild(circle);
-      });
-    }
-    
-    function renderScatterLegend(container, chartData, groupField) {
-      const legendX = chartDimensions.width - 160;
-      const legendY = 50;
-      
-      // Legend title
-      const title = createSVGElement('text', {
-        x: legendX,
-        y: legendY,
-        class: 'legend-text',
-        style: 'font-weight: bold;'
-      });
-      title.textContent = groupField;
-      container.appendChild(title);
-      
-      // Legend items
-      chartData.groups.forEach((group, index) => {
-        const y = legendY + 20 + index * 20;
-        const color = chartData.groupColorMap[group];
-        const groupId = `group-${String(group).replace(/[^a-zA-Z0-9]/g, '-')}`;
-        
-        const legendGroup = createSVGElement('g', {
-          class: 'legend-item',
-          'data-group': group,
-          id: groupId
-        });
-        
-        // Clickable background
-        legendGroup.appendChild(createSVGElement('rect', {
-          x: legendX - 5, y: y - 12,
-          width: 160, height: 18,
-          fill: 'transparent', stroke: 'none'
-        }));
-        
-        // Checkbox
-        legendGroup.appendChild(createSVGElement('rect', {
-          x: legendX, y: y - 8,
-          width: 8, height: 8,
-          class: 'legend-checkbox checked',
-          'data-group': group
-        }));
-        
-        // Color indicator
-        legendGroup.appendChild(createSVGElement('circle', {
-          cx: legendX + 18, cy: y - 4,
-          r: 5, fill: color,
-          class: 'legend-indicator',
-          'data-group': group
-        }));
-        
-        // Label
-        const text = createSVGElement('text', {
-          x: legendX + 28, y: y,
-          class: 'legend-text',
-          'data-group': group
-        });
-        text.textContent = group;
-        legendGroup.appendChild(text);
-        
-        container.appendChild(legendGroup);
-      });
-    }
-    
-    function renderScatterControls(container, x, y, width) {
-      let currentY = y;
-      
-      // Get available numeric fields for axis selection
-      const numericFields = Object.keys(embeddedData.rows[0]).filter(field => {
-        return embeddedData.rows.some(row => typeof row[field] === 'number');
-      });
-      
-      // X-axis dropdown
-      const xAxisGroup = createUIGroup(x, currentY, 'X Axis:', currentOptions.xField, numericFields, (field) => {
-        currentOptions.xField = field;
-        renderChartContent();
-      });
-      container.appendChild(xAxisGroup);
-      currentY += 50;
-      
-      // Y-axis dropdown  
-      const yAxisGroup = createUIGroup(x, currentY, 'Y Axis:', currentOptions.yField, numericFields, (field) => {
-        currentOptions.yField = field;
-        renderChartContent();
-      });
-      container.appendChild(yAxisGroup);
-      currentY += 50;
-      
-      // All fields for grouping (including string fields)
-      const allFields = Object.keys(embeddedData.rows[0]);
-      const groupFields = ['None', ...allFields];
-      const currentGroupField = currentOptions.groupField || 'None';
-      
-      // Group field dropdown
-      const groupAxisGroup = createUIGroup(x, currentY, 'Group By:', currentGroupField, groupFields, (field) => {
-        if (field === 'None') {
-          delete currentOptions.groupField;
-        } else {
-          currentOptions.groupField = field;
-        }
-        renderChartContent();
-      });
-      container.appendChild(groupAxisGroup);
-      currentY += 50;
-      
-      // Filters section
-      renderFiltersSection(container, x, currentY, width);
-      
-      // Save button at the bottom
-      const saveButton = createSaveButton(x, chartDimensions.height - 60, width);
-      container.appendChild(saveButton);
-    }
+
+function generateScatterChart(data, options) {
+  log_debug('generateScatterChart called with:', { 
+    dataRows: data.rows.length, 
+    options: options,
+    filters: currentOptions.filters
+  });
   
+  const { width, height, padding } = chartDimensions;
+  const controlPanelWidth = 240;
+  const chartWidth = width - controlPanelWidth - padding - 20;
+  const chartHeight = height - 2 * padding;
+  
+  // Apply filters to data
+  const filteredData = { ...data, rows: applyFilters(data.rows) };
+  
+  log_debug('Data filtering result:', {
+    originalRows: data.rows.length,
+    filteredRows: filteredData.rows.length,
+    filtersApplied: currentOptions.filters ? currentOptions.filters.length : 0
+  });
+  
+  // Calculate scales using filtered data
+  const xValues = filteredData.rows.map(row => row[options.xField]).filter(v => typeof v === 'number');
+  const yValues = filteredData.rows.map(row => row[options.yField]).filter(v => typeof v === 'number');
+  
+  const xMin = Math.min(...xValues);
+  const xMax = Math.max(...xValues);
+  const yMin = Math.min(...yValues);
+  const yMax = Math.max(...yValues);
+  
+  log_debug('Scale calculation:', {
+    xField: options.xField,
+    yField: options.yField,
+    xValues: xValues.length,
+    yValues: yValues.length,
+    xRange: [xMin, xMax],
+    yRange: [yMin, yMax]
+  });
+  
+  // Handle case where all values are the same (range = 0)
+  const xRange = xMax - xMin;
+  const yRange = yMax - yMin;
+  const xPadding = xRange > 0 ? xRange * 0.05 : Math.abs(xMin) * 0.1 || 1;
+  const yPadding = yRange > 0 ? yRange * 0.05 : Math.abs(yMin) * 0.1 || 1;
+  
+  const xScale = {
+    min: xMin - xPadding,
+    max: xMax + xPadding,
+    range: Math.max(xRange + 2 * xPadding, 2 * xPadding)
+  };
+  
+  const yScale = {
+    min: yMin - yPadding,
+    max: yMax + yPadding,
+    range: Math.max(yRange + 2 * yPadding, 2 * yPadding)
+  };
+  
+  // Get unique groups for coloring using filtered data
+  const groups = options.groupField ? 
+    [...new Set(filteredData.rows.map(row => row[options.groupField]))] : 
+    ['default'];
+  
+  const colors = generateColors(groups.length);
+  const groupColorMap = {};
+  groups.forEach((group, index) => {
+    groupColorMap[group] = colors[index];
+  });
+  
+  // Generate chart elements using filtered data
+  const points = filteredData.rows.map((row, index) => {
+    const x = row[options.xField];
+    const y = row[options.yField];
     
+    if (typeof x !== 'number' || typeof y !== 'number') {
+      return null;
+    }
+    
+    const svgX = controlPanelWidth + padding + ((x - xScale.min) / xScale.range) * chartWidth;
+    const svgY = padding + chartHeight - ((y - yScale.min) / yScale.range) * chartHeight;
+    
+    const group = options.groupField ? row[options.groupField] : 'default';
+    const weight = options.weightField ? row[options.weightField] : 1;
+    const radius = Math.max(2, Math.min(10, 3 + Math.sqrt(weight) * 2));
+    
+    return {
+      x: svgX,
+      y: svgY,
+      radius,
+      color: groupColorMap[group],
+      group,
+      data: row,
+      index
+    };
+  }).filter(p => p !== null);
+  
+  return {
+    type: 'scatter',
+    points,
+    xScale,
+    yScale,
+    groupColorMap,
+    groups,
+    chartBounds: {
+      left: controlPanelWidth + padding,
+      top: padding,
+      width: chartWidth,
+      height: chartHeight
+    }
+  };
+}
+
+function renderScatterChart(container, chartData, options) {
+  const { xField, yField } = options;
+  
+  // Render axes
+  renderScatterAxes(container, chartData, xField, yField);
+  
+  // Render points
+  renderScatterPoints(container, chartData);
+  
+  // Render legend if needed
+  if (options.groupField && chartData.groups.length > 1) {
+    renderScatterLegend(container, chartData, options.groupField);
+  }
+}
+
+function renderScatterAxes(container, chartData, xField, yField) {
+  const { chartBounds, xScale, yScale } = chartData;
+  
+  // Main axes
+  container.appendChild(createSVGElement('line', {
+    x1: chartBounds.left,
+    y1: chartBounds.top + chartBounds.height,
+    x2: chartBounds.left + chartBounds.width,
+    y2: chartBounds.top + chartBounds.height,
+    class: 'axis-line'
+  }));
+  
+  container.appendChild(createSVGElement('line', {
+    x1: chartBounds.left,
+    y1: chartBounds.top,
+    x2: chartBounds.left,
+    y2: chartBounds.top + chartBounds.height,
+    class: 'axis-line'
+  }));
+  
+  // Generate ticks
+  const xTicks = generateTicks(xScale.min, xScale.max, 5).filter(tick => tick >= xScale.min && tick <= xScale.max);
+  const yTicks = generateTicks(yScale.min, yScale.max, 5).filter(tick => tick >= yScale.min && tick <= yScale.max);
+  
+  // Grid lines and tick marks
+  xTicks.forEach(tick => {
+    const x = chartBounds.left + ((tick - xScale.min) / xScale.range) * chartBounds.width;
+    
+    // Grid line
+    if (Math.abs(x - chartBounds.left) > 1) {
+      container.appendChild(createSVGElement('line', {
+        x1: x, y1: chartBounds.top,
+        x2: x, y2: chartBounds.top + chartBounds.height,
+        class: 'grid-line'
+      }));
+    }
+    
+    // Tick mark
+    container.appendChild(createSVGElement('line', {
+      x1: x, y1: chartBounds.top + chartBounds.height,
+      x2: x, y2: chartBounds.top + chartBounds.height + 5,
+      class: 'axis-tick'
+    }));
+    
+    // Label
+    const text = createSVGElement('text', {
+      x: x,
+      y: chartBounds.top + chartBounds.height + 18,
+      'text-anchor': 'middle',
+      class: 'axis-text'
+    });
+    text.textContent = formatNumber(tick);
+    container.appendChild(text);
+  });
+  
+  yTicks.forEach(tick => {
+    const y = chartBounds.top + chartBounds.height - ((tick - yScale.min) / yScale.range) * chartBounds.height;
+    
+    // Grid line
+    if (Math.abs(y - (chartBounds.top + chartBounds.height)) > 1) {
+      container.appendChild(createSVGElement('line', {
+        x1: chartBounds.left, y1: y,
+        x2: chartBounds.left + chartBounds.width, y2: y,
+        class: 'grid-line'
+      }));
+    }
+    
+    // Tick mark
+    container.appendChild(createSVGElement('line', {
+      x1: chartBounds.left - 5, y1: y,
+      x2: chartBounds.left, y2: y,
+      class: 'axis-tick'
+    }));
+    
+    // Label
+    const text = createSVGElement('text', {
+      x: chartBounds.left - 10,
+      y: y + 4,
+      'text-anchor': 'end',
+      class: 'axis-text'
+    });
+    text.textContent = formatNumber(tick);
+    container.appendChild(text);
+  });
+  
+  // Axis titles
+  const xTitle = createSVGElement('text', {
+    x: chartBounds.left + chartBounds.width/2,
+    y: chartBounds.top + chartBounds.height + 45,
+    'text-anchor': 'middle',
+    class: 'axis-text',
+    style: 'font-weight: bold;'
+  });
+  xTitle.textContent = xField;
+  container.appendChild(xTitle);
+  
+  const yTitle = createSVGElement('text', {
+    x: chartBounds.left - 60,
+    y: chartBounds.top + chartBounds.height/2,
+    'text-anchor': 'middle',
+    class: 'axis-text',
+    style: 'font-weight: bold;',
+    transform: `rotate(-90, ${chartBounds.left - 60}, ${chartBounds.top + chartBounds.height/2})`
+  });
+  yTitle.textContent = yField;
+  container.appendChild(yTitle);
+}
+
+function renderScatterPoints(container, chartData) {
+  chartData.points.forEach(point => {
+    const circle = createSVGElement('circle', {
+      cx: point.x,
+      cy: point.y,
+      r: point.radius,
+      fill: point.color,
+      class: 'chart-point',
+      'data-group': point.group,
+      'data-index': point.index
+    });
+    
+    const title = createSVGElement('title');
+    title.textContent = JSON.stringify(point.data);
+    circle.appendChild(title);
+    
+    container.appendChild(circle);
+  });
+}
+
+function renderScatterLegend(container, chartData, groupField) {
+  const legendX = chartDimensions.width - 160;
+  const legendY = 50;
+  
+  // Legend title
+  const title = createSVGElement('text', {
+    x: legendX,
+    y: legendY,
+    class: 'legend-text',
+    style: 'font-weight: bold;'
+  });
+  title.textContent = groupField;
+  container.appendChild(title);
+  
+  // Legend items
+  chartData.groups.forEach((group, index) => {
+    const y = legendY + 20 + index * 20;
+    const color = chartData.groupColorMap[group];
+    const groupId = `group-${String(group).replace(/[^a-zA-Z0-9]/g, '-')}`;
+    
+    const legendGroup = createSVGElement('g', {
+      class: 'legend-item',
+      'data-group': group,
+      id: groupId
+    });
+    
+    // Clickable background
+    legendGroup.appendChild(createSVGElement('rect', {
+      x: legendX - 5, y: y - 12,
+      width: 160, height: 18,
+      fill: 'transparent', stroke: 'none'
+    }));
+    
+    // Checkbox
+    legendGroup.appendChild(createSVGElement('rect', {
+      x: legendX, y: y - 8,
+      width: 8, height: 8,
+      class: 'legend-checkbox checked',
+      'data-group': group
+    }));
+    
+    // Color indicator
+    legendGroup.appendChild(createSVGElement('circle', {
+      cx: legendX + 18, cy: y - 4,
+      r: 5, fill: color,
+      class: 'legend-indicator',
+      'data-group': group
+    }));
+    
+    // Label
+    const text = createSVGElement('text', {
+      x: legendX + 28, y: y,
+      class: 'legend-text',
+      'data-group': group
+    });
+    text.textContent = group;
+    legendGroup.appendChild(text);
+    
+    container.appendChild(legendGroup);
+  });
+}
+
+function renderScatterControls(container, x, y, width) {
+  let currentY = y;
+  
+  // Get available numeric fields for axis selection
+  const numericFields = Object.keys(embeddedData.rows[0]).filter(field => {
+    return embeddedData.rows.some(row => typeof row[field] === 'number');
+  });
+  
+  // X-axis dropdown
+  const xAxisGroup = createUIGroup(x, currentY, 'X Axis:', currentOptions.xField, numericFields, (field) => {
+    currentOptions.xField = field;
+    renderChartContent();
+  });
+  container.appendChild(xAxisGroup);
+  currentY += 50;
+  
+  // Y-axis dropdown  
+  const yAxisGroup = createUIGroup(x, currentY, 'Y Axis:', currentOptions.yField, numericFields, (field) => {
+    currentOptions.yField = field;
+    renderChartContent();
+  });
+  container.appendChild(yAxisGroup);
+  currentY += 50;
+  
+  // All fields for grouping (including string fields)
+  const allFields = Object.keys(embeddedData.rows[0]);
+  const groupFields = ['None', ...allFields];
+  const currentGroupField = currentOptions.groupField || 'None';
+  
+  // Group field dropdown
+  const groupAxisGroup = createUIGroup(x, currentY, 'Group By:', currentGroupField, groupFields, (field) => {
+    if (field === 'None') {
+      delete currentOptions.groupField;
+    } else {
+      currentOptions.groupField = field;
+    }
+    renderChartContent();
+  });
+  container.appendChild(groupAxisGroup);
+  currentY += 50;
+  
+  // Filters section
+  renderFiltersSection(container, x, currentY, width);
+  
+  // Save button at the bottom
+  const saveButton = createSaveButton(x, chartDimensions.height - 60, width);
+  container.appendChild(saveButton);
+}
     
     // Histogram chart implementation
-    
-    function generateHistogram(data, options) {
-      log_debug('generateHistogram called with:', { 
-        dataRows: data.rows.length, 
-        options: options,
-        filters: currentOptions.filters
-      });
-      
-      const { width, height, padding } = chartDimensions;
-      const controlPanelWidth = 240;
-      const chartWidth = width - controlPanelWidth - padding - 20;
-      const chartHeight = height - 2 * padding;
-      
-      // Apply filters to data
-      const filteredData = { ...data, rows: applyFilters(data.rows) };
-      
-      // Get values for the specified field
-      const values = filteredData.rows
-        .map(row => row[options.histogramField])
-        .filter(v => v !== null && v !== undefined);
-      
-      // Determine if numeric or categorical
-      const numericValues = values.filter(v => typeof v === 'number');
-      const stringValues = values.filter(v => typeof v === 'string');
-      
-      let histogramData;
-      if (numericValues.length > 0 && stringValues.length === 0) {
-        histogramData = generateNumericHistogram(numericValues, options.binCount || 10);
-      } else {
-        histogramData = generateCategoricalHistogram(values.map(v => String(v)));
-      }
-      
-      return {
-        type: 'histogram',
-        histogramData,
-        chartBounds: {
-          left: controlPanelWidth + padding,
-          top: padding,
-          width: chartWidth,
-          height: chartHeight
-        }
-      };
-    }
-    
-    function generateNumericHistogram(values, numBins) {
-      const dataMin = Math.min(...values);
-      const dataMax = Math.max(...values);
-      const range = dataMax - dataMin;
-      
-      if (range === 0) {
-        return {
-          type: 'numeric',
-          bins: [{
-            min: dataMin,
-            max: dataMax,
-            count: values.length,
-            label: String(dataMin)
-          }],
-          min: dataMin,
-          max: dataMax,
-          maxCount: values.length
-        };
-      }
-      
-      // Generate nice boundaries using smart tick generation
-      const { niceMin, niceMax, niceBinWidth, actualBinCount } = calculateNiceBins(dataMin, dataMax, numBins);
-      
-      // Initialize bins with nice boundaries
-      const bins = [];
-      for (let i = 0; i < actualBinCount; i++) {
-        const binMin = niceMin + i * niceBinWidth;
-        const binMax = niceMin + (i + 1) * niceBinWidth;
-        bins.push({
-          min: binMin,
-          max: binMax,
-          count: 0,
-          label: formatNiceBinLabel(binMin, binMax, niceBinWidth)
-        });
-      }
-      
-      // Count values in each bin
-      values.forEach(value => {
-        // Find which bin this value belongs to
-        const binIndex = Math.floor((value - niceMin) / niceBinWidth);
-        // Clamp to valid range (handle edge cases where value equals niceMax)
-        const clampedIndex = Math.max(0, Math.min(bins.length - 1, binIndex));
-        bins[clampedIndex].count++;
-      });
-      
-      const maxCount = Math.max(...bins.map(b => b.count));
-      
-      return {
-        type: 'numeric',
-        bins: bins,
-        min: niceMin,
-        max: niceMax,
-        maxCount: maxCount
-      };
-    }
-    
-    function calculateNiceBins(dataMin, dataMax, targetBinCount) {
-      const range = dataMax - dataMin;
-      const roughBinWidth = range / targetBinCount;
-      
-      // Find nice bin width using the same logic as axis ticks
-      const magnitude = Math.pow(10, Math.floor(Math.log10(roughBinWidth)));
-      const normalized = roughBinWidth / magnitude;
-      
-      let niceBinWidth;
-      if (normalized <= 1) {
-        niceBinWidth = 1 * magnitude;
-      } else if (normalized <= 2) {
-        niceBinWidth = 2 * magnitude;
-      } else if (normalized <= 2.5) {
-        niceBinWidth = 2.5 * magnitude;
-      } else if (normalized <= 5) {
-        niceBinWidth = 5 * magnitude;
-      } else {
-        niceBinWidth = 10 * magnitude;
-      }
-      
-      // Calculate nice min and max that encompass all data
-      const niceMin = Math.floor(dataMin / niceBinWidth) * niceBinWidth;
-      const niceMax = Math.ceil(dataMax / niceBinWidth) * niceBinWidth;
-      
-      // Calculate actual number of bins
-      const actualBinCount = Math.round((niceMax - niceMin) / niceBinWidth);
-      
-      return {
-        niceMin,
-        niceMax,
-        niceBinWidth,
-        actualBinCount
-      };
-    }
-    
-    function generateCategoricalHistogram(values) {
-      const counts = {};
-      values.forEach(value => {
-        counts[value] = (counts[value] || 0) + 1;
-      });
-      
-      const bins = Object.entries(counts)
-        .map(([label, count]) => ({
-          label: label,
-          count: count
-        }))
-        .sort((a, b) => b.count - a.count);
-      
-      const maxCount = Math.max(...bins.map(b => b.count));
-      
-      return {
-        type: 'categorical',
-        bins: bins,
-        maxCount: maxCount
-      };
-    }
-    
-    function formatBinLabel(min, max, binWidth) {
-      const formatNum = (num) => {
-        if (binWidth >= 1) {
-          return num.toFixed(0);
-        } else if (binWidth >= 0.1) {
-          return num.toFixed(1);
-        } else if (binWidth >= 0.01) {
-          return num.toFixed(2);
-        } else {
-          return num.toFixed(3);
-        }
-      };
-      
-      return `${formatNum(min)}-${formatNum(max)}`;
-    }
-    
-    function formatNiceBinLabel(min, max, binWidth) {
-      // Format numbers using scientific notation for large numbers
-      const formatNum = (num) => {
-        if (num === 0) return '0';
-        
-        const absNum = Math.abs(num);
-        
-        // Use scientific notation for very large or very small numbers
-        if (absNum >= 1e6 || (absNum < 1e-3 && absNum > 0)) {
-          const exponent = Math.floor(Math.log10(absNum));
-          const mantissa = num / Math.pow(10, exponent);
-          
-          // Format mantissa to avoid unnecessary decimals
-          const formattedMantissa = mantissa % 1 === 0 ? 
-            mantissa.toString() : 
-            mantissa.toFixed(1);
-          
-          return `${formattedMantissa}×10^${exponent}`;
-        } else if (absNum >= 1) {
-          // For numbers >= 1 but < 1e6
-          if (num % 1 === 0) {
-            return num.toString();
-          } else if (binWidth >= 1) {
-            return num.toFixed(0);
-          } else if (binWidth >= 0.1) {
-            return num.toFixed(1);
-          } else {
-            return num.toFixed(2);
-          }
-        } else {
-          // For small decimals >= 1e-3
-          if (binWidth >= 0.01) {
-            return num.toFixed(2);
-          } else if (binWidth >= 0.001) {
-            return num.toFixed(3);
-          } else {
-            return num.toFixed(4);
-          }
-        }
-      };
-      
-      return `${formatNum(min)}-${formatNum(max)}`;
-    }
-    
-    function suggestBinCount(values) {
-      const n = values.length;
-      if (n === 0) return 10;
-      
-      const sturges = Math.ceil(1 + 3.322 * Math.log10(n));
-      return Math.max(5, Math.min(50, sturges));
-    }
-    
-    function renderHistogramChart(container, chartData, options) {
-      const { histogramField } = options;
-      
-      // Render axes
-      renderHistogramAxes(container, chartData, histogramField);
-      
-      // Render bars
-      renderHistogramBars(container, chartData);
-    }
-    
-    function renderHistogramAxes(container, chartData, fieldName) {
-      const { chartBounds, histogramData } = chartData;
-      
-      // X-axis line
-      container.appendChild(createSVGElement('line', {
-        x1: chartBounds.left,
-        y1: chartBounds.top + chartBounds.height,
-        x2: chartBounds.left + chartBounds.width,
-        y2: chartBounds.top + chartBounds.height,
-        class: 'axis-line'
-      }));
-      
-      // Y-axis line
-      container.appendChild(createSVGElement('line', {
-        x1: chartBounds.left,
-        y1: chartBounds.top,
-        x2: chartBounds.left,
-        y2: chartBounds.top + chartBounds.height,
-        class: 'axis-line'
-      }));
-      
-      // Y-axis ticks and labels (count)
-      const yTicks = generateTicks(0, histogramData.maxCount, 5);
-      yTicks.forEach(tick => {
-        const y = chartBounds.top + chartBounds.height - (tick / histogramData.maxCount) * chartBounds.height;
-        
-        // Grid line
-        if (tick > 0) {
-          container.appendChild(createSVGElement('line', {
-            x1: chartBounds.left, y1: y,
-            x2: chartBounds.left + chartBounds.width, y2: y,
-            class: 'grid-line'
-          }));
-        }
-        
-        // Tick mark
-        container.appendChild(createSVGElement('line', {
-          x1: chartBounds.left - 5, y1: y,
-          x2: chartBounds.left, y2: y,
-          class: 'axis-tick'
-        }));
-        
-        // Label
-        const text = createSVGElement('text', {
-          x: chartBounds.left - 10,
-          y: y + 4,
-          'text-anchor': 'end',
-          class: 'axis-text'
-        });
-        text.textContent = formatNumber(tick);
-        container.appendChild(text);
-      });
-      
-      // Y-axis title
-      const yTitle = createSVGElement('text', {
-        x: chartBounds.left - 40,
-        y: chartBounds.top + chartBounds.height/2,
-        'text-anchor': 'middle',
-        class: 'axis-text',
-        style: 'font-weight: bold;',
-        transform: `rotate(-90, ${chartBounds.left - 40}, ${chartBounds.top + chartBounds.height/2})`
-      });
-      yTitle.textContent = 'Count';
-      container.appendChild(yTitle);
-      
-      // X-axis title
-      const xTitle = createSVGElement('text', {
-        x: chartBounds.left + chartBounds.width/2,
-        y: chartBounds.top + chartBounds.height + 45,
-        'text-anchor': 'middle',
-        class: 'axis-text',
-        style: 'font-weight: bold;'
-      });
-      xTitle.textContent = fieldName || 'Value';
-      container.appendChild(xTitle);
-    }
-    
-    function renderHistogramBars(container, chartData) {
-      const { chartBounds, histogramData } = chartData;
-      const bins = histogramData.bins;
-      const barWidth = chartBounds.width / bins.length;
-      const barPadding = Math.min(4, barWidth * 0.1);
-      
-      bins.forEach((bin, index) => {
-        const x = chartBounds.left + index * barWidth + barPadding;
-        const width = barWidth - 2 * barPadding;
-        const height = (bin.count / histogramData.maxCount) * chartBounds.height;
-        const y = chartBounds.top + chartBounds.height - height;
-        
-        // Bar
-        const bar = createSVGElement('rect', {
-          x: x,
-          y: y,
-          width: width,
-          height: height,
-          fill: '#1f77b4',
-          class: 'histogram-bar',
-          'data-bin': index
-        });
-        
-        // Tooltip
-        const title = createSVGElement('title');
-        title.textContent = `${bin.label}: ${bin.count}`;
-        bar.appendChild(title);
-        
-        container.appendChild(bar);
-        
-        // X-axis label (rotated for better fit)
-        const labelX = x + width/2;
-        const labelY = chartBounds.top + chartBounds.height + 15;
-        
-        const label = createSVGElement('text', {
-          x: labelX,
-          y: labelY,
-          'text-anchor': 'middle',
-          class: 'axis-text',
-          style: 'font-size: 9px;',
-          transform: `rotate(-45, ${labelX}, ${labelY})`
-        });
-        
-        // Truncate label if too long
-        const maxLength = 15;
-        const labelText = bin.label.length > maxLength ? 
-          bin.label.substring(0, maxLength) + '...' : bin.label;
-        label.textContent = labelText;
-        
-        container.appendChild(label);
-      });
-    }
-    
-    function renderHistogramControls(container, x, y, width) {
-      let currentY = y;
-      
-      // All fields for histogram
-      const allFields = Object.keys(embeddedData.rows[0]);
-      
-      // Initialize histogram field if not set
-      if (!currentOptions.histogramField) {
-        // Try to find a numeric field first
-        const numericFields = allFields.filter(field => {
-          return embeddedData.rows.some(row => typeof row[field] === 'number');
-        });
-        
-        // Use first numeric field if available, otherwise first field
-        currentOptions.histogramField = numericFields.length > 0 ? numericFields[0] : allFields[0];
-        
-        // Auto-suggest bin count for numeric fields
-        const values = embeddedData.rows
-          .map(row => row[currentOptions.histogramField])
-          .filter(v => typeof v === 'number');
-        if (values.length > 0 && !currentOptions.binCount) {
-          currentOptions.binCount = suggestBinCount(values);
-        }
-      }
-      
-      // Field selection dropdown
-      const fieldGroup = createUIGroup(x, currentY, 'Field:', 
-        currentOptions.histogramField, allFields, (field) => {
-        currentOptions.histogramField = field;
-        
-        // Auto-suggest bin count for numeric fields
-        const values = embeddedData.rows
-          .map(row => row[field])
-          .filter(v => typeof v === 'number');
-        if (values.length > 0) {
-          currentOptions.binCount = suggestBinCount(values);
-        }
-        
-        renderChart(); // Re-render to update bin count control visibility
-      });
-      container.appendChild(fieldGroup);
-      currentY += 50;
-      
-      // Check if current field is numeric to show bin count control
-      const values = embeddedData.rows
-        .map(row => row[currentOptions.histogramField])
-        .filter(v => v !== null && v !== undefined);
-      const numericValues = values.filter(v => typeof v === 'number');
-      const stringValues = values.filter(v => typeof v === 'string');
-      const isNumeric = numericValues.length > 0 && stringValues.length === 0;
-      
-      if (isNumeric) {
-        // Initialize bin count if not set
-        if (!currentOptions.binCount) {
-          currentOptions.binCount = suggestBinCount(numericValues);
-        }
-        
-        // Bin count input
-        const binCountGroup = createBinCountInput(x, currentY, 'Bins:', 
-          currentOptions.binCount, (count) => {
-          currentOptions.binCount = parseInt(count);
-          renderChartContent();
-        });
-        container.appendChild(binCountGroup);
-        currentY += 50;
-      }
-      
-      // Filters section
-      renderFiltersSection(container, x, currentY, width);
-      
-      // Save button at the bottom
-      const saveButton = createSaveButton(x, chartDimensions.height - 60, width);
-      container.appendChild(saveButton);
-    }
-    
-    function createBinCountInput(x, y, label, currentValue, onChange) {
-      const group = createSVGElement('g');
-      
-      // Label
-      const labelText = createSVGElement('text', {
-        x: x,
-        y: y - 5,
-        class: 'ui-label'
-      });
-      labelText.textContent = label;
-      group.appendChild(labelText);
-      
-      // Create foreignObject for HTML input
-      const foreignObject = createSVGElement('foreignObject', {
-        x: x,
-        y: y,
-        width: 60,
-        height: 22
-      });
-      
-      // Create HTML input element
-      const inputElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'input');
-      inputElement.setAttribute('type', 'number');
-      inputElement.setAttribute('value', currentValue);
-      inputElement.setAttribute('min', '3');
-      inputElement.setAttribute('max', '100');
-      inputElement.setAttribute('style', 
-        'width: 56px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; ' +
-        'border: 1px solid #ccc; border-radius: 3px; background: white; padding: 2px; outline: none;'
-      );
-      
-      inputElement.addEventListener('change', (e) => {
-        const value = parseInt(e.target.value);
-        if (value >= 3 && value <= 100) {
-          onChange(value);
-        }
-      });
-      
-      foreignObject.appendChild(inputElement);
-      group.appendChild(foreignObject);
-      
-      return group;
-    }
+
+function generateHistogram(data, options) {
+  log_debug('generateHistogram called with:', { 
+    dataRows: data.rows.length, 
+    options: options,
+    filters: currentOptions.filters
+  });
   
+  const { width, height, padding } = chartDimensions;
+  const controlPanelWidth = 240;
+  const chartWidth = width - controlPanelWidth - padding - 20;
+  const chartHeight = height - 2 * padding;
+  
+  // Apply filters to data
+  const filteredData = { ...data, rows: applyFilters(data.rows) };
+  
+  // Get values for the specified field
+  const values = filteredData.rows
+    .map(row => row[options.histogramField])
+    .filter(v => v !== null && v !== undefined);
+  
+  // Determine if numeric or categorical
+  const numericValues = values.filter(v => typeof v === 'number');
+  const stringValues = values.filter(v => typeof v === 'string');
+  
+  let histogramData;
+  if (numericValues.length > 0 && stringValues.length === 0) {
+    histogramData = generateNumericHistogram(numericValues, options.binCount || 10);
+  } else {
+    histogramData = generateCategoricalHistogram(values.map(v => String(v)));
+  }
+  
+  return {
+    type: 'histogram',
+    histogramData,
+    chartBounds: {
+      left: controlPanelWidth + padding,
+      top: padding,
+      width: chartWidth,
+      height: chartHeight
+    }
+  };
+}
+
+function generateNumericHistogram(values, numBins) {
+  if (values.length === 0) return { bins: [], isNumeric: true };
+  
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min;
+  
+  // Handle constant values
+  if (range === 0) {
+    return {
+      bins: [{
+        label: formatNumber(min),
+        value: min,
+        count: values.length,
+        range: [min, min]
+      }],
+      isNumeric: true,
+      min,
+      max
+    };
+  }
+  
+  // Calculate nice bin width
+  const rawBinWidth = range / numBins;
+  const magnitude = Math.pow(10, Math.floor(Math.log10(rawBinWidth)));
+  const normalized = rawBinWidth / magnitude;
+  
+  let niceBinWidth;
+  if (normalized <= 1) niceBinWidth = 1 * magnitude;
+  else if (normalized <= 2) niceBinWidth = 2 * magnitude;
+  else if (normalized <= 2.5) niceBinWidth = 2.5 * magnitude;
+  else if (normalized <= 5) niceBinWidth = 5 * magnitude;
+  else niceBinWidth = 10 * magnitude;
+  
+  // Adjust start to be a nice multiple
+  const binStart = Math.floor(min / niceBinWidth) * niceBinWidth;
+  const binEnd = Math.ceil(max / niceBinWidth) * niceBinWidth;
+  const actualNumBins = Math.round((binEnd - binStart) / niceBinWidth);
+  
+  // Create bins
+  const bins = [];
+  for (let i = 0; i < actualNumBins; i++) {
+    const start = binStart + i * niceBinWidth;
+    const end = start + niceBinWidth;
+    bins.push({
+      label: formatBinLabel(start, end, niceBinWidth),
+      value: start + niceBinWidth / 2,
+      count: 0,
+      range: [start, end]
+    });
+  }
+  
+  // Count values in bins
+  values.forEach(value => {
+    const binIndex = Math.min(
+      Math.floor((value - binStart) / niceBinWidth),
+      bins.length - 1
+    );
+    if (binIndex >= 0 && binIndex < bins.length) {
+      bins[binIndex].count++;
+    }
+  });
+  
+  return {
+    bins: bins.filter(bin => bin.count > 0),
+    isNumeric: true,
+    min,
+    max
+  };
+}
+
+function generateCategoricalHistogram(values) {
+  const counts = {};
+  values.forEach(value => {
+    counts[value] = (counts[value] || 0) + 1;
+  });
+  
+  const bins = Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({
+      label,
+      value: label,
+      count
+    }));
+  
+  return {
+    bins,
+    isNumeric: false
+  };
+}
+
+function formatBinLabel(start, end, binWidth) {
+  // Determine precision based on bin width
+  const precision = Math.max(0, -Math.floor(Math.log10(binWidth)) + 1);
+  
+  if (precision === 0) {
+    return `${Math.round(start)}-${Math.round(end)}`;
+  } else {
+    return `${start.toFixed(precision)}-${end.toFixed(precision)}`;
+  }
+}
+
+function renderHistogramChart(container, chartData, options) {
+  const { histogramField } = options;
+  const { histogramData, chartBounds } = chartData;
+  
+  // Calculate scales
+  const maxCount = Math.max(...histogramData.bins.map(b => b.count));
+  const yScale = {
+    min: 0,
+    max: maxCount * 1.1,
+    range: maxCount * 1.1
+  };
+  
+  // Render axes
+  renderHistogramAxes(container, chartData, histogramField, yScale);
+  
+  // Render bars
+  renderHistogramBars(container, chartData, yScale);
+}
+
+function renderHistogramAxes(container, chartData, fieldName, yScale) {
+  const { chartBounds, histogramData } = chartData;
+  
+  // X-axis
+  container.appendChild(createSVGElement('line', {
+    x1: chartBounds.left,
+    y1: chartBounds.top + chartBounds.height,
+    x2: chartBounds.left + chartBounds.width,
+    y2: chartBounds.top + chartBounds.height,
+    class: 'axis-line'
+  }));
+  
+  // Y-axis
+  container.appendChild(createSVGElement('line', {
+    x1: chartBounds.left,
+    y1: chartBounds.top,
+    x2: chartBounds.left,
+    y2: chartBounds.top + chartBounds.height,
+    class: 'axis-line'
+  }));
+  
+  // Y-axis ticks and labels
+  const yTicks = generateTicks(0, yScale.max, 5).filter(tick => tick >= 0 && tick <= yScale.max);
+  
+  yTicks.forEach(tick => {
+    const y = chartBounds.top + chartBounds.height - (tick / yScale.range) * chartBounds.height;
+    
+    // Grid line
+    if (tick > 0) {
+      container.appendChild(createSVGElement('line', {
+        x1: chartBounds.left,
+        y1: y,
+        x2: chartBounds.left + chartBounds.width,
+        y2: y,
+        class: 'grid-line'
+      }));
+    }
+    
+    // Tick
+    container.appendChild(createSVGElement('line', {
+      x1: chartBounds.left - 5,
+      y1: y,
+      x2: chartBounds.left,
+      y2: y,
+      class: 'axis-tick'
+    }));
+    
+    // Label
+    const text = createSVGElement('text', {
+      x: chartBounds.left - 10,
+      y: y + 4,
+      'text-anchor': 'end',
+      class: 'axis-text'
+    });
+    text.textContent = Math.round(tick).toString();
+    container.appendChild(text);
+  });
+  
+  // Axis titles
+  const xTitle = createSVGElement('text', {
+    x: chartBounds.left + chartBounds.width / 2,
+    y: chartBounds.top + chartBounds.height + 60,
+    'text-anchor': 'middle',
+    class: 'axis-text',
+    style: 'font-weight: bold;'
+  });
+  xTitle.textContent = fieldName;
+  container.appendChild(xTitle);
+  
+  const yTitle = createSVGElement('text', {
+    x: chartBounds.left - 60,
+    y: chartBounds.top + chartBounds.height / 2,
+    'text-anchor': 'middle',
+    class: 'axis-text',
+    style: 'font-weight: bold;',
+    transform: `rotate(-90, ${chartBounds.left - 60}, ${chartBounds.top + chartBounds.height / 2})`
+  });
+  yTitle.textContent = 'Count';
+  container.appendChild(yTitle);
+}
+
+function renderHistogramBars(container, chartData, yScale) {
+  const { chartBounds, histogramData } = chartData;
+  const bins = histogramData.bins;
+  
+  if (bins.length === 0) return;
+  
+  const barWidth = chartBounds.width / bins.length;
+  const barPadding = Math.min(barWidth * 0.1, 5);
+  
+  bins.forEach((bin, index) => {
+    const x = chartBounds.left + index * barWidth + barPadding / 2;
+    const width = barWidth - barPadding;
+    const height = (bin.count / yScale.range) * chartBounds.height;
+    const y = chartBounds.top + chartBounds.height - height;
+    
+    // Bar
+    const rect = createSVGElement('rect', {
+      x: x,
+      y: y,
+      width: width,
+      height: height,
+      fill: '#4285f4',
+      class: 'histogram-bar',
+      'data-count': bin.count,
+      'data-label': bin.label
+    });
+    
+    // Tooltip
+    const title = createSVGElement('title');
+    title.textContent = `${bin.label}: ${bin.count}`;
+    rect.appendChild(title);
+    
+    container.appendChild(rect);
+    
+    // X-axis label
+    const text = createSVGElement('text', {
+      x: x + width / 2,
+      y: chartBounds.top + chartBounds.height + 20,
+      'text-anchor': 'middle',
+      class: 'axis-text',
+      transform: bins.length > 20 ? 
+        `rotate(-45, ${x + width / 2}, ${chartBounds.top + chartBounds.height + 20})` : ''
+    });
+    
+    // Truncate long labels
+    const maxLabelLength = bins.length > 10 ? 10 : 15;
+    const label = bin.label.length > maxLabelLength ? 
+      bin.label.substring(0, maxLabelLength - 3) + '...' : bin.label;
+    text.textContent = label;
+    
+    container.appendChild(text);
+  });
+}
+
+function renderHistogramControls(container, x, y, width) {
+  let currentY = y;
+  
+  // Get all fields for histogram selection
+  const allFields = Object.keys(embeddedData.rows[0]);
+  
+  // Field dropdown
+  const fieldGroup = createUIGroup(x, currentY, 'Field:', currentOptions.histogramField, allFields, (field) => {
+    currentOptions.histogramField = field;
+    // Reset bin count when changing fields
+    const values = embeddedData.rows
+      .map(row => row[field])
+      .filter(v => v !== null && v !== undefined && typeof v === 'number');
+    if (values.length > 0) {
+      currentOptions.binCount = Math.min(Math.max(5, Math.round(Math.sqrt(values.length))), 50);
+    }
+    renderChartContent();
+  });
+  container.appendChild(fieldGroup);
+  currentY += 50;
+  
+  // Check if current field is numeric
+  const values = embeddedData.rows
+    .map(row => row[currentOptions.histogramField])
+    .filter(v => v !== null && v !== undefined);
+  
+  const numericValues = values.filter(v => typeof v === 'number');
+  const isNumeric = numericValues.length > 0 && values.filter(v => typeof v === 'string').length === 0;
+  
+  // Show bin count control only for numeric fields
+  if (isNumeric) {
+    const binGroup = createNumberInputGroup(
+      x, currentY, 'Bins:', 
+      currentOptions.binCount || 10,
+      3, 100,
+      (value) => {
+        currentOptions.binCount = value;
+        renderChartContent();
+      }
+    );
+    container.appendChild(binGroup);
+    currentY += 50;
+  }
+  
+  // Filters section
+  renderFiltersSection(container, x, currentY, width);
+  
+  // Save button at the bottom
+  const saveButton = createSaveButton(x, chartDimensions.height - 60, width);
+  container.appendChild(saveButton);
+}
+
+function createNumberInputGroup(x, y, label, value, min, max, onChange) {
+  const group = createSVGElement('g');
+  
+  // Label
+  const labelText = createSVGElement('text', {
+    x: x,
+    y: y,
+    class: 'control-label'
+  });
+  labelText.textContent = label;
+  group.appendChild(labelText);
+  
+  // Foreign object for HTML input
+  const foreignObject = createSVGElement('foreignObject', {
+    x: x + 60,
+    y: y - 15,
+    width: 60,
+    height: 25
+  });
+  
+  const inputElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'input');
+  inputElement.setAttribute('type', 'number');
+  inputElement.setAttribute('value', value);
+  inputElement.setAttribute('min', min);
+  inputElement.setAttribute('max', max);
+  inputElement.setAttribute('style', 
+    'width: 60px; height: 20px; font-family: Arial, sans-serif; ' +
+    'border: 1px solid #ccc; padding: 2px; background: white;'
+  );
+  
+  inputElement.addEventListener('change', (e) => {
+    const newValue = parseInt(e.target.value);
+    if (!isNaN(newValue) && newValue >= min && newValue <= max) {
+      onChange(newValue);
+    } else {
+      e.target.value = value;
+    }
+  });
+  
+  foreignObject.appendChild(inputElement);
+  group.appendChild(foreignObject);
+  
+  return group;
+}
     
     // Chart registry - defined after the chart functions are available
     const chartTypes = {
