@@ -93,21 +93,22 @@ The codebase follows a modular architecture with clear separation of concerns:
 
 ```
 src/
-├── cli.js                            # Command-line interface and main entry point
-├── csv.js                            # CSV parsing with automatic type inference
-├── svg.js                            # Minimal SVG coordinator (71 lines)
-├── embedded/                         # All chart rendering code (browser-side)
-│   ├── chart-runtime.js              # Chart framework, registry, and utilities
-│   ├── chart-utils-impl.js           # Chart utility functions implementation
-│   ├── embedded-loader.js            # Generalized loader for embedded modules
-│   ├── filter-utils-impl.js          # Data filtering utilities implementation
-│   ├── interactivity.js              # Event handling, public API, filters
-│   ├── ui-components-impl.js          # UI component rendering implementation
-│   └── charts/                       # Chart-specific modules
-│       ├── histogram-chart-impl.js   # Histogram chart implementation
-│       └── scatter-chart-impl.js     # Scatter plot implementation
-└── generators/                       # Minimal server-side utilities
-    └── svg-elements.js               # CSS generation only
+├── cli.js                            # Command-line interface and main entry point (HOST)
+├── csv.js                            # CSV parsing with automatic type inference (HOST)
+├── svg.js                            # SVG generation coordinator (HOST)
+├── embedded-loader.js                # Manages embedding process (HOST)
+├── embedded/                         # Code that gets embedded into SVGs (EMBEDDED)
+│   ├── chart-utils.js                # Chart utility functions
+│   ├── filter-utils.js               # Data filtering utilities
+│   ├── filters.js                    # Filter management functions
+│   ├── interactivity.js              # Event handling, public API, initialization
+│   ├── render-ui.js                  # UI rendering functions
+│   ├── ui-components.js              # UI component creation functions
+│   └── charts/                       # Chart-specific implementations
+│       ├── histogram-chart.js        # Histogram chart implementation
+│       └── scatter-chart.js          # Scatter plot implementation
+└── generators/                       # Server-side SVG utilities (HOST)
+    └── svg-elements.js               # CSS and SVG markup generation
 
 test/                                 # Unit and integration tests
 ├── embedded-test-helper.js           # Mock browser environment for testing
@@ -119,13 +120,38 @@ examples/                             # Generated SVG examples (tracked in git)
 .github/workflows/                    # CI/CD automation (unit, integration, linting)
 ```
 
+## Execution Contexts
+
+The codebase has three distinct execution contexts with clear boundaries:
+
+### 1. HOST Context (Node.js CLI)
+Files that run in Node.js during SVG generation:
+- **`src/cli.js`** - Command-line argument parsing and main entry point
+- **`src/csv.js`** - CSV file reading and data type inference
+- **`src/svg.js`** - SVG structure generation and data embedding
+- **`src/embedded-loader.js`** - Loads embedded modules and strips ES6 syntax
+- **`src/generators/svg-elements.js`** - CSS and SVG markup generation
+
+### 2. EMBEDDED Context (Browser SVG Runtime)
+Files that get embedded into SVG and run in the browser:
+- **`src/embedded/*.js`** - All files in this directory run in browser SVG context
+- **No import/export statements** - Module syntax stripped by embedded-loader
+- **Access to DOM APIs** - Can manipulate SVG elements and handle events
+- **Self-contained** - No external dependencies, all code embedded inline
+
+### 3. TEST Context (Node.js Testing)
+Files that run during testing with mock browser environment:
+- **`test/*.test.js`** - Unit tests using Node.js test runner
+- **`test/embedded-test-helper.js`** - Mock DOM/browser APIs for testing embedded code
+- **Can import embedded files directly** - For unit testing individual functions
+
 ### Key Architectural Benefits
 - **Pure Embedded Rendering**: All chart generation happens in the browser, not server-side
-- **Minimal Node.js Footprint**: Server only creates SVG container (71 lines in svg.js)
+- **Clean Separation**: Clear boundaries between Node.js build-time and browser runtime code
 - **Testable Embedded Code**: Chart logic in separate .js files, not string templates
 - **Chart Type Modularity**: Each chart type has its own embedded implementation
-- **Generic Chart Framework**: Shared infrastructure in chart-runtime.js supports all chart types
-- **Zero Server-side Chart Logic**: Complete separation of concerns
+- **Minimal Build Process**: Simple file loading and syntax stripping, no complex bundling
+- **Zero External Dependencies**: Generated SVGs work offline without any external resources
 - **Extensible Design**: Add new chart types by creating embedded modules only
 
 ## Testing
@@ -290,20 +316,20 @@ updateChart({
 
 ### Adding New Features
 - **New chart types**: 
-  1. Create `[type]-chart-impl.js` in `src/embedded/charts/` with chart logic
-  2. Update chart registry in `chart-runtime.js` to load via `loadEmbeddedChart()`
-  3. Add CLI options in `cli.js`
-- **New embedded utilities**: Create `[utility]-impl.js` files in `src/embedded/`
+  1. Create `[type]-chart.js` in `src/embedded/charts/` with chart logic
+  2. Update chart registry in `src/svg.js` to load via `loadEmbeddedChart('[type]-chart')`
+  3. Add CLI options in `src/cli.js`
+- **New embedded utilities**: Create `[utility].js` files in `src/embedded/`
 - **CSS updates**: Modify `src/generators/svg-elements.js`
 
 ### Chart Type Implementation Pattern
-Each chart type follows a consistent pattern using the generalized embedded loader:
+Each chart type follows a consistent pattern using the embedded loader:
 
 **Embedded Implementation** (`src/embedded/charts/`):
-- `[type]-chart-impl.js`: Contains actual chart implementation with functions like `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
+- `[type]-chart.js`: Contains actual chart implementation with functions like `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
 - Loaded automatically by `embedded-loader.js` which strips module syntax for SVG embedding
-- Register in chart-runtime.js using `loadEmbeddedChart('[type]-chart')`
-- All chart files use `-impl.js` suffix for consistent loading
+- Register in chart registry in `src/svg.js` using `loadEmbeddedChart('[type]-chart')`
+- All embedded files use standard `.js` extension
 
 **No server-side chart logic**: All chart generation happens in embedded JavaScript
 

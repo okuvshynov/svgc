@@ -182,31 +182,41 @@ This project uses a pure embedded rendering approach:
 
 ```
 src/
-├── cli.js                            # Command-line interface
-├── csv.js                            # CSV parsing with type inference
-├── svg.js                            # Minimal SVG coordinator (71 lines)
-├── embedded/                         # All chart rendering code (browser-side)
-│   ├── chart-runtime.js              # Chart framework and registry
-│   ├── chart-utils-impl.js           # Chart utility functions
-│   ├── embedded-loader.js            # Generalized module loader
-│   ├── filter-utils-impl.js          # Data filtering utilities
-│   ├── interactivity.js              # Event handling and public API
-│   ├── ui-components-impl.js          # UI component rendering
-│   └── charts/                       # Chart implementations
-│       ├── histogram-chart-impl.js   # Histogram chart implementation
-│       └── scatter-chart-impl.js     # Scatter plot implementation
-└── generators/                       # Minimal server utilities
-    └── svg-elements.js               # CSS generation only
+├── cli.js                            # Command-line interface (HOST)
+├── csv.js                            # CSV parsing with type inference (HOST)
+├── svg.js                            # SVG generation coordinator (HOST)
+├── embedded-loader.js                # Manages embedding process (HOST)
+├── embedded/                         # Code that gets embedded into SVGs (EMBEDDED)
+│   ├── chart-utils.js                # Chart utility functions
+│   ├── filter-utils.js               # Data filtering utilities
+│   ├── filters.js                    # Filter management functions
+│   ├── interactivity.js              # Event handling, public API, initialization
+│   ├── render-ui.js                  # UI rendering functions
+│   ├── ui-components.js              # UI component creation functions
+│   └── charts/                       # Chart-specific implementations
+│       ├── histogram-chart.js        # Histogram chart implementation
+│       └── scatter-chart.js          # Scatter plot implementation
+└── generators/                       # Server-side SVG utilities (HOST)
+    └── svg-elements.js               # CSS and SVG markup generation
 
-test/
+test/                                 # Testing environment (TEST)
 ├── embedded-test-helper.js           # Mock browser environment
 └── *.test.js                         # Unit and integration tests
 ```
 
+## Execution Contexts
+
+The codebase has three distinct execution environments:
+
+1. **HOST Context (Node.js)**: Files marked `(HOST)` run during SVG generation
+2. **EMBEDDED Context (Browser)**: Files in `src/embedded/` run inside generated SVGs
+3. **TEST Context (Node.js)**: Test files run with mock browser environment
+
 **Key Benefits:**
+- **Clear Separation**: Distinct boundaries between build-time and runtime code
 - **Pure Client-side Rendering**: All charts generated in the browser
 - **Testable Embedded Code**: Chart logic in separate files, not strings
-- **Minimal Server Footprint**: Node.js code is minimal and focused
+- **Minimal Build Process**: Simple file loading and syntax stripping
 - **Easy Extension**: Add new charts by creating embedded modules only
 
 ## Contributing
