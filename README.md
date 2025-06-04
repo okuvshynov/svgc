@@ -187,12 +187,14 @@ src/
 ├── svg.js                            # Minimal SVG coordinator (71 lines)
 ├── embedded/                         # All chart rendering code (browser-side)
 │   ├── chart-runtime.js              # Chart framework and registry
+│   ├── chart-utils-impl.js           # Chart utility functions
+│   ├── embedded-loader.js            # Generalized module loader
+│   ├── filter-utils-impl.js          # Data filtering utilities
 │   ├── interactivity.js              # Event handling and public API
+│   ├── ui-components-impl.js          # UI component rendering
 │   └── charts/                       # Chart implementations
-│       ├── scatter-chart.js          # Loads scatter chart code
-│       ├── scatter-chart-embedded.js # Scatter plot implementation
-│       ├── histogram-chart.js        # Loads histogram code
-│       └── histogram-chart-embedded.js # Histogram implementation
+│       ├── histogram-chart-impl.js   # Histogram chart implementation
+│       └── scatter-chart-impl.js     # Scatter plot implementation
 └── generators/                       # Minimal server utilities
     └── svg-elements.js               # CSS generation only
 

@@ -43,6 +43,16 @@ The system uses **100% embedded rendering**:
 - **Self-contained JavaScript**: All chart logic included in the generated SVG
 - **Zero external dependencies**: No external JS libraries or resources needed
 
+### Generalized Embedded Module Loading
+
+The system uses a **generalized embedded loader** (`embedded-loader.js`) for clean module management:
+- **Unified Loading Pattern**: All embedded modules use `-impl.js` suffix for consistency
+- **Module Syntax Stripping**: Automatically removes `export`/`import` statements for SVG embedding
+- **Chart-specific Loading**: `loadEmbeddedChart(name)` loads chart implementations from `charts/` subdirectory
+- **Utility Loading**: `loadEmbeddedUtil(name)` loads utility implementations from `embedded/` directory
+- **Clean Separation**: Node.js modules with ES6 syntax become browser-compatible embedded code
+- **Testable Architecture**: Implementation files can be tested directly with mock browser environment
+
 ## Development Commands
 
 - **Run the tool**: `node src/cli.js [options] <csv-file>`
@@ -88,12 +98,14 @@ src/
 ├── svg.js                            # Minimal SVG coordinator (71 lines)
 ├── embedded/                         # All chart rendering code (browser-side)
 │   ├── chart-runtime.js              # Chart framework, registry, and utilities
+│   ├── chart-utils-impl.js           # Chart utility functions implementation
+│   ├── embedded-loader.js            # Generalized loader for embedded modules
+│   ├── filter-utils-impl.js          # Data filtering utilities implementation
 │   ├── interactivity.js              # Event handling, public API, filters
+│   ├── ui-components-impl.js          # UI component rendering implementation
 │   └── charts/                       # Chart-specific modules
-│       ├── scatter-chart.js          # Loads scatter-chart-embedded.js
-│       ├── scatter-chart-embedded.js # Scatter plot implementation
-│       ├── histogram-chart.js        # Loads histogram-chart-embedded.js
-│       └── histogram-chart-embedded.js # Histogram implementation
+│       ├── histogram-chart-impl.js   # Histogram chart implementation
+│       └── scatter-chart-impl.js     # Scatter plot implementation
 └── generators/                       # Minimal server-side utilities
     └── svg-elements.js               # CSS generation only
 
@@ -278,21 +290,20 @@ updateChart({
 
 ### Adding New Features
 - **New chart types**: 
-  1. Create `[type]-chart-embedded.js` in `src/embedded/charts/` with chart logic
-  2. Create `[type]-chart.js` to load the embedded code
-  3. Update chart registry in `chart-runtime.js`
-  4. Add CLI options in `cli.js`
-- **New embedded features**: Add browser functions to `src/embedded/`
+  1. Create `[type]-chart-impl.js` in `src/embedded/charts/` with chart logic
+  2. Update chart registry in `chart-runtime.js` to load via `loadEmbeddedChart()`
+  3. Add CLI options in `cli.js`
+- **New embedded utilities**: Create `[utility]-impl.js` files in `src/embedded/`
 - **CSS updates**: Modify `src/generators/svg-elements.js`
 
 ### Chart Type Implementation Pattern
-Each chart type follows a consistent pattern:
+Each chart type follows a consistent pattern using the generalized embedded loader:
 
 **Embedded Implementation** (`src/embedded/charts/`):
-- `[type]-chart.js`: Loads the embedded code from file system
-- `[type]-chart-embedded.js`: Contains actual chart implementation
-- Export functions: `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
-- Register in chart-runtime.js with consistent interface
+- `[type]-chart-impl.js`: Contains actual chart implementation with functions like `generate[Type]Chart`, `render[Type]Chart`, `render[Type]Controls`
+- Loaded automatically by `embedded-loader.js` which strips module syntax for SVG embedding
+- Register in chart-runtime.js using `loadEmbeddedChart('[type]-chart')`
+- All chart files use `-impl.js` suffix for consistent loading
 
 **No server-side chart logic**: All chart generation happens in embedded JavaScript
 
