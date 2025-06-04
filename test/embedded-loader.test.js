@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { loadEmbedded, loadEmbeddedChart, loadEmbeddedUtil } from '../src/embedded/embedded-loader.js';
+import { loadEmbedded, loadEmbeddedChart, loadEmbeddedUtil } from '../src/embedded-loader.js';
 
 test('Embedded Loader', async (t) => {
   await t.test('loadEmbedded', async (t) => {

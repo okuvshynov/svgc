@@ -1,5 +1,5 @@
 import { generateCSS } from './generators/svg-elements.js';
-import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded/embedded-loader.js';
+import { loadEmbeddedChart, loadEmbeddedUtil } from './embedded-loader.js';
 
 export function generateSVG(data, options) {
   const { width, height } = options;

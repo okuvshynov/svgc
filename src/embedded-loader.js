@@ -15,7 +15,8 @@ const __dirname = dirname(__filename);
  * @returns {string} The file contents with export/import statements removed
  */
 export function loadEmbedded(moduleName, subdirectory = '') {
-  const basePath = subdirectory ? join(__dirname, subdirectory) : __dirname;
+  const embeddedDir = join(__dirname, 'embedded');
+  const basePath = subdirectory ? join(embeddedDir, subdirectory) : embeddedDir;
   const filePath = join(basePath, `${moduleName}-impl.js`);
   
   try {
