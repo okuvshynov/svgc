@@ -5,6 +5,7 @@ import { generateEmbeddedScatterChart } from './charts/scatter-chart.js';
 import { generateEmbeddedHistogramChart } from './charts/histogram-chart.js';
 import { generateEmbeddedChartUtils } from './chart-utils-embedded.js';
 import { generateEmbeddedFilterUtils } from './filter-utils-embedded.js';
+import { generateEmbeddedUIComponents } from './ui-components-embedded.js';
 
 export function generateEmbeddedChartFunctions() {
   return `
@@ -13,6 +14,8 @@ export function generateEmbeddedChartFunctions() {
     ${generateEmbeddedChartUtils()}
     
     ${generateEmbeddedFilterUtils()}
+    
+    ${generateEmbeddedUIComponents()}
     
     // Filter management
     let pendingFilters = [...(currentOptions.filters || [])];
@@ -177,18 +180,18 @@ export function generateRenderingFunctions() {
       let buttonY = currentY + 5;
       
       // Add Filter button
-      const addFilterButton = createAddFilterButton(x, buttonY, 80);
+      const addFilterButton = createAddFilterButton(x, buttonY, 80, addFilter);
       container.appendChild(addFilterButton);
       
       // Apply Filters button (if there are pending filters)
       if (pendingFilters.length > 0) {
-        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90);
+        const applyButton = createApplyFiltersButton(x + 85, buttonY, 90, applyPendingFilters);
         container.appendChild(applyButton);
       }
       
       // Clear All button (if there are any filters)
       if (pendingFilters.length > 0 || (currentOptions.filters && currentOptions.filters.length > 0)) {
-        const clearAllButton = createClearAllButton(x + 180, buttonY, 70);
+        const clearAllButton = createClearAllButton(x + 180, buttonY, 70, clearAllFilters);
         container.appendChild(clearAllButton);
       }
     }
@@ -219,214 +222,8 @@ export function generateRenderingFunctions() {
       group.appendChild(valueInput);
       
       // Remove button (15px width)
-      const removeButton = createRemoveButton(x + 195, y, filter.id);
+      const removeButton = createRemoveButton(x + 195, y, filter.id, removeFilter);
       group.appendChild(removeButton);
-      
-      return group;
-    }
-    
-    function createValueInput(x, y, width, currentValue, onChange) {
-      const foreignObject = createSVGElement('foreignObject', {
-        x: x,
-        y: y,
-        width: width,
-        height: 22
-      });
-      
-      const input = document.createElementNS('http://www.w3.org/1999/xhtml', 'input');
-      input.setAttribute('type', 'text');
-      input.setAttribute('value', currentValue);
-      input.setAttribute('style', 
-        \`width: \${width-4}px; height: 18px; font-family: Arial, sans-serif; font-size: 10px; \` +
-        'border: 1px solid #ccc; border-radius: 3px; padding: 1px;'
-      );
-      
-      input.addEventListener('input', (e) => {
-        onChange(e.target.value);
-      });
-      
-      foreignObject.appendChild(input);
-      return foreignObject;
-    }
-    
-    function createRemoveButton(x, y, filterId) {
-      const group = createSVGElement('g', { class: 'remove-filter-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y + 2,
-        width: 16,
-        height: 16,
-        fill: '#ff6b6b',
-        stroke: '#ff5252',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // X symbol
-      const xText = createSVGElement('text', {
-        x: x + 8,
-        y: y + 13,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 12px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      xText.textContent = '×';
-      group.appendChild(xText);
-      
-      group.addEventListener('click', () => {
-        removeFilter(filterId);
-      });
-      
-      return group;
-    }
-    
-    function createAddFilterButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'add-filter-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#4CAF50',
-        stroke: '#45a049',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = '+ Add';
-      group.appendChild(text);
-      
-      group.addEventListener('click', addFilter);
-      
-      return group;
-    }
-    
-    function createApplyFiltersButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'apply-filters-btn', style: 'cursor: pointer;' });
-      
-      // Background - always active blue
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#2196F3',
-        stroke: '#1976D2',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Apply Filters';
-      group.appendChild(text);
-      
-      group.addEventListener('click', applyPendingFilters);
-      
-      return group;
-    }
-    
-    function createClearAllButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'clear-all-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 20,
-        fill: '#f44336',
-        stroke: '#d32f2f',
-        'stroke-width': 1,
-        rx: 3
-      });
-      group.appendChild(bg);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2,
-        y: y + 14,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 11px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Clear All';
-      group.appendChild(text);
-      
-      group.addEventListener('click', clearAllFilters);
-      
-      return group;
-    }
-    
-    function createSaveButton(x, y, width) {
-      const group = createSVGElement('g', { class: 'save-btn', style: 'cursor: pointer;' });
-      
-      // Background
-      const bg = createSVGElement('rect', {
-        x: x,
-        y: y,
-        width: width,
-        height: 30,
-        fill: '#673AB7',
-        stroke: '#512DA8',
-        'stroke-width': 1,
-        rx: 4
-      });
-      group.appendChild(bg);
-      
-      // Icon - simple floppy disk shape
-      const iconGroup = createSVGElement('g', {
-        transform: \`translate(\${x + 15}, \${y + 7})\`
-      });
-      
-      // Floppy disk body
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 0, y: 0, width: 16, height: 16,
-        fill: 'white', stroke: 'none'
-      }));
-      
-      // Floppy disk shutter
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 3, y: 0, width: 10, height: 6,
-        fill: '#673AB7', stroke: 'none'
-      }));
-      
-      // Floppy disk label area
-      iconGroup.appendChild(createSVGElement('rect', {
-        x: 2, y: 8, width: 12, height: 6,
-        fill: '#673AB7', stroke: 'none'
-      }));
-      
-      group.appendChild(iconGroup);
-      
-      // Text
-      const text = createSVGElement('text', {
-        x: x + width/2 + 5,
-        y: y + 19,
-        'text-anchor': 'middle',
-        style: 'font-family: Arial, sans-serif; font-size: 13px; font-weight: bold; fill: white; pointer-events: none;'
-      });
-      text.textContent = 'Save Current View';
-      group.appendChild(text);
-      
-      group.addEventListener('click', saveCurrentState);
       
       return group;
     }
@@ -484,59 +281,6 @@ export function generateRenderingFunctions() {
       setTimeout(() => URL.revokeObjectURL(url), 100);
       
       log_debug('Chart saved as:', filename);
-    }
-    
-    function createUIGroup(x, y, label, currentValue, options, onChange, width = 130) {
-      const group = createSVGElement('g');
-      
-      // Label (only if provided)
-      if (label) {
-        const labelText = createSVGElement('text', {
-          x: x,
-          y: y - 5,
-          class: 'ui-label'
-        });
-        labelText.textContent = label;
-        group.appendChild(labelText);
-      }
-      
-      // Create foreignObject for HTML select
-      const foreignObject = createSVGElement('foreignObject', {
-        x: x,
-        y: y,
-        width: width,
-        height: 22
-      });
-      
-      // Create HTML select element in XHTML namespace
-      const selectElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'select');
-      
-      // Set style attribute as string since we're in XML context
-      selectElement.setAttribute('style', 
-        \`width: \${width}px; height: 20px; font-family: Arial, sans-serif; font-size: 11px; \` +
-        'border: 1px solid #ccc; border-radius: 3px; background: white; padding: 2px; outline: none;'
-      );
-      
-      // Add options to select
-      options.forEach(option => {
-        const optionElement = document.createElementNS('http://www.w3.org/1999/xhtml', 'option');
-        optionElement.setAttribute('value', option);
-        optionElement.textContent = option;
-        if (option === currentValue) {
-          optionElement.setAttribute('selected', 'selected');
-        }
-        selectElement.appendChild(optionElement);
-      });
-      
-      // Add event listener
-      selectElement.addEventListener('change', (e) => {
-        onChange(e.target.value);
-      });
-      
-      foreignObject.appendChild(selectElement);
-      
-      group.appendChild(foreignObject);
-      return group;
     }
 
     function renderChart() {
